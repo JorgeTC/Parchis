@@ -27,3 +27,28 @@ target_include_directories(parchis PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 # Include tests directory
 add_subdirectory(test)
+
+# Write -DRUN_IWYU=ON on calling cmake to run iwyu
+option(RUN_IWYU "Run IWYU analysis" OFF)
+if (RUN_IWYU)
+    find_program(iwyu_path NAMES include-what-you-use iwyu REQUIRED)
+    if(iwyu_path)
+        message("Found iwyu in ${iwyu_path}")
+        set_property(TARGET parchis PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+    endif()
+else()
+    message("IWYU is set to false")
+endif()
+
+# Write DRUN_CLANG_TIDY=ON on calling cmake to run clang tidy
+option(RUN_CLANG_TIDY "Run CLANG_TIDY analysis" OFF)
+if (RUN_CLANG_TIDY)
+    find_program(clang_tidy_path NAMES "clang-tidy" REQUIRED)
+    if (clang_tidy_path)
+        message("Found clang_tidy in ${clang_tidy_path}")
+        set(CLANG_TIDY_COMMAND "${clang_tidy_path}" "-checks=-*,bugprone-*,cppcoreguidelines-*,clang-analyzer-*")
+        set_property(TARGET parchis PROPERTY CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
+    endif()
+else()
+    message("CLANG_TIDY is set to false")
+endif()

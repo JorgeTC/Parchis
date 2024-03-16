@@ -20,9 +20,10 @@ static double piecePunctuation(Position piece, Position finalPosition,
   }
 
   // There is path to move until getting to the hallway
-  Position playingPosition = (piece == HOME) ? initialPosition : piece;
-  unsigned int remainingToFinal = playingPosition - piece;
-  if (remainingToFinal < 0) remainingToFinal += totalPositions;
+  if (piece < firstHallway) {
+    Position playingPosition = (piece == HOME) ? initialPosition : piece;
+    punctuation += distanceToPosition(playingPosition, finalPosition);
+  }
 
   // Add the average dices rolls to get to the goal from the final hallway
   unsigned int distanceToGoal =

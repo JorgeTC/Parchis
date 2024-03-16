@@ -1,10 +1,11 @@
-#include <gtest/gtest.h>
+#include <gtest/gtest.h>  // for Test, SuiteApiResolver, TestInfo (ptr only)
 
-#include <stdexcept>
+#include <array>   // for array
+#include <memory>  // for allocator
 
-#include "player.hpp"
-#include "table.hpp"
-#include "dices.hpp"
+#include "dices.hpp"   // for getDiceValProbability, averageDiceRoll
+#include "player.hpp"  // for Player
+#include "table.hpp"   // for HOME, GOAL, Position, firstHallway, finalHa...
 
 TEST(TestPlayer, TestPunctuation) {
   Player player1{1, {HOME, HOME, HOME, HOME}};

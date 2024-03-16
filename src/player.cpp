@@ -1,13 +1,11 @@
 #include "player.hpp"
 
-#include <algorithm>
-#include <array>
-#include <sstream>
-#include <stdexcept>
-#include <string>
+#include <algorithm>  // for find
+#include <array>      // for array<>::iterator, array
+#include <sstream>    // for operator<<, ostringstream, basic_ostream, basic...
 
-#include "dices.hpp"
-#include "table.hpp"
+#include "dices.hpp"  // for getDiceValProbability, averageDiceRoll
+#include "table.hpp"  // for Position, getPlayerInitialPosition, getPlayerLa...
 
 static double piecePunctuation(Position piece, Position finalPosition,
                                Position initialPosition) {

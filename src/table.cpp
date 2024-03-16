@@ -1,11 +1,8 @@
 #include "table.hpp"
 
-#include <algorithm>
-#include <array>
-#include <set>
-#include <sstream>
-#include <stdexcept>
-#include <string>
+#include <set>        // for operator==, set, set<>::const_iterator
+#include <sstream>    // for operator<<, ostringstream, basic_ostream, basic...
+#include <stdexcept>  // for invalid_argument
 
 Position getPlayerInitialPosition(PlayerNumber player) {
   switch (player) {

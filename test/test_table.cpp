@@ -1,10 +1,9 @@
-#include <gtest/gtest.h>
+#include <gtest/gtest.h>  // for Test, Message, TestPartResult, EXPECT_THROW
 
-#include <stdexcept>
+#include <memory>     // for allocator
+#include <stdexcept>  // for invalid_argument
 
-#include "table.hpp"
-
-#include <iostream>
+#include "table.hpp"  // for distanceToPosition, getPlayerInitialPosition
 
 TEST(TableTest, TestErrorOnWrongPlayer) {
   EXPECT_THROW(getPlayerInitialPosition(0), std::invalid_argument);

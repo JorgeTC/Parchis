@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(parchis)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -O0")
 
 # Set the desired runtime library setting for Google Test
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)

@@ -1,7 +1,9 @@
-#include <array>
-#include <utility>
-
 #pragma once
+
+#include <array>
+#include <map>
+#include <stdexcept>
+#include <utility>
 
 using DiceRoll = unsigned int;
 using DicePairRoll = std::pair<DiceRoll, DiceRoll>;
@@ -68,4 +70,52 @@ static constexpr double getDiceValProbability(unsigned int diceVal) {
   const unsigned int pIndex{diceVal - 1};
   if (pIndex >= 12) throw std::invalid_argument("Impossible dice value");
   return diceValProbability[pIndex];
+}
+
+// Number of dice rolls where both dices have the same value
+static constexpr unsigned int N_DOUBLE_DICE_ROLLS = 6;
+
+// Number of dice rolls where both dices have different value
+static constexpr unsigned int N_NOT_DOUBLE_DICE_ROLLS =
+    N_DICE_ROLLS - N_DOUBLE_DICE_ROLLS;
+// Probability of every unordered not double dice roll
+static constexpr double PROB_NOT_DOUBLE_DICE =
+    2.0 / static_cast<double>(N_DICE_ROLLS);
+// Probability of not getting double dices
+static constexpr double PROB_GET_NOT_DOUBLE_DICE =
+    static_cast<double>(N_NOT_DOUBLE_DICE_ROLLS) /
+    static_cast<double>(N_DICE_ROLLS);
+
+// Number of unordered dice rolls
+static constexpr unsigned int N_UNIQUE_DICE_ROLLS =
+    N_NOT_DOUBLE_DICE_ROLLS / 2 + N_DOUBLE_DICE_ROLLS;
+// Probability of every double dice roll
+static constexpr double PROB_DOUBLE_DICE =
+    1.0 / static_cast<double>(N_DICE_ROLLS);
+// Probability of double dices
+static constexpr double PROB_GET_DOUBLE_DICE =
+    static_cast<double>(N_DOUBLE_DICE_ROLLS) /
+    static_cast<double>(N_DICE_ROLLS);
+
+using UnorderedRolls = std::array<DicePairRoll, N_UNIQUE_DICE_ROLLS>;
+
+// Return all the possible different dice rolls without repetition in the order
+// of the dices
+static constexpr UnorderedRolls getUnorderedRolls() {
+  UnorderedRolls unorderedRolls{};
+
+  auto unorderedRollsIt{unorderedRolls.begin()};
+  for (DiceRoll dice1 = 1; dice1 <= 6; dice1++) {
+    for (DiceRoll dice2 = dice1; dice2 <= 6; dice2++) {
+      *unorderedRollsIt = DicePairRoll({dice1, dice2});
+      unorderedRollsIt++;
+    }
+  }
+
+  return unorderedRolls;
+}
+
+static constexpr double getRollProbability(DicePairRoll diceRoll) {
+  return diceRoll.first == diceRoll.second ? PROB_DOUBLE_DICE
+                                           : PROB_NOT_DOUBLE_DICE;
 }

@@ -102,7 +102,7 @@ static Position destinyPosition(Position pieceToMove,
   return pieceToMove;
 }
 
-void Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
+Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
   // Check I have the pice I was asked to move
   auto itPieceToMove = std::find(pieces.begin(), pieces.end(), pieceToMove);
   if (itPieceToMove == pieces.end())
@@ -110,4 +110,23 @@ void Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
   Position& toMove = *itPieceToMove;
 
   toMove = destinyPosition(toMove, positionsToMove, playerNumber);
+
+  // Return the final position of the piece
+  return toMove;
+}
+
+bool Player::hasWon() const {
+  return std::all_of(pieces.begin(), pieces.end(),
+                     [](Position piece) { return piece == GOAL; });
+};
+
+std::vector<unsigned int> Player::indicesForHomePieces() const {
+  std::vector<unsigned int> indices;
+  indices.reserve(4);
+
+  for (unsigned int i = 0; i < pieces.size(); i++) {
+    if (pieces[i] == HOME) indices.push_back(i);
+  }
+
+  return indices;
 }

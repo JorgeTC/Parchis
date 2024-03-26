@@ -119,3 +119,6 @@ static constexpr double getRollProbability(DicePairRoll diceRoll) {
   return diceRoll.first == diceRoll.second ? PROB_DOUBLE_DICE
                                            : PROB_NOT_DOUBLE_DICE;
 }
+
+// Number needed to get of from home
+static constexpr DiceRoll OUT_OF_HOME = 5;

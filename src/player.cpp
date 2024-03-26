@@ -16,7 +16,7 @@ static double piecePunctuation(Position piece, Position finalPosition,
 
   // Add the average points you get before you see the first five
   if (piece == HOME) {
-    punctuation += 1 / getDiceValProbability(5) * averageDiceRoll;
+    punctuation += 1 / getDiceValProbability(OUT_OF_HOME) * averageDiceRoll;
   }
 
   // There is path to move until getting to the hallway
@@ -50,7 +50,7 @@ static Position destinyPosition(Position pieceToMove,
                                 PlayerNumber playerNumber) {
   // If the piece is at home the only move it can make is exit
   if (pieceToMove == HOME) {
-    if (positionsToMove == 5) {
+    if (positionsToMove == OUT_OF_HOME) {
       pieceToMove = getPlayerInitialPosition(playerNumber);
     } else {
       std::ostringstream oss;

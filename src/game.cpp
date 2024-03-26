@@ -1,7 +1,7 @@
 #include "game.hpp"
 
-#include <array>  // for array
-#include <cmath>
+#include <array>      // for array
+#include <cmath>      // for INFINITY
 #include <iterator>   // for move_iterator, make_move_iterator, next
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error

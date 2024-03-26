@@ -46,3 +46,24 @@ TEST(TestGame, TestMoveToWinDicesInversion) {
   ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
   ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
 }
+
+TEST(TestGame, TestDontGetTooCloseToGoal) {
+  Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 5}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  // Create a scroll that does not allow to get into the goal, but could take me
+  // closer to it: to a worse position
+  DicePairRoll roll{4, 2};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 5, GOAL - 3}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  const Move& bestMove = bestPlay[0];
+  const Move& expectedBestMove = expectedBestPlay[0];
+  ASSERT_EQ(bestMove.player, expectedBestMove.player);
+  ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+  ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+}

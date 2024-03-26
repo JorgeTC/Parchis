@@ -1,6 +1,7 @@
 #include "game.hpp"
 
 #include <array>      // for array
+#include <cmath>      // for INFINITY
 #include <iterator>   // for move_iterator, make_move_iterator, next
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error
@@ -100,12 +101,16 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
 
   unsigned int advance = advances.front();
   for (auto piece : currentPlayer.pieces) {
+    // Create a new game to not modify the current one
     Game newGame = *this;
+    // Make the current player to move the current amount
     Player& playerToMove = newGame.getPlayer(currentPlayer.playerNumber);
     Move move{currentPlayer.playerNumber, piece};
     try {
       move.dest = playerToMove.movePiece(piece, advance);
     } catch (Player::WrongMove e) {
+      // The current piece cannot be moved as much as wanted, so no new state
+      // can be created
       continue;
     }
 
@@ -157,7 +162,7 @@ double Game::nonRecursiveEvaluateState(const Player& currentPlayer) const {
   for (const Player& player : players) {
     double playerValue = player.punctuation();
     if (player.playerNumber == currentPlayer.playerNumber) playerValue *= -1;
-    value += playerValue;
+    value -= playerValue;
   }
 
   return value;
@@ -174,16 +179,29 @@ double Game::evaluateState(const Player& currentPlayer,
 ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
   const Player& player{getPlayer(playerId)};
 
+  ScoredPlay bestPlay = {{}, INFINITY};
+  // Get all the possible states I can get with this dice roll
   std::vector<Game::Turn> turns{allPossibleStates(player, dices)};
   for (auto turn : turns) {
-    const auto& finalPlayerSate =
+    // Get the final state of the player that has made a movement
+    const Player& finalPlayerSate =
         ::getPlayer(turn.finalSate, player.playerNumber);
+
+    // If I find a turn for which I win, stop searching
     if (finalPlayerSate.hasWon()) {
       return {turn.movements, finalPlayerSate.punctuation()};
     }
+
+    // Evaluate the current state with the needed depth
+    double evaluation = Game(turn.finalSate).evaluateState(finalPlayerSate, 0);
+    // If the state is better that the best found till now, update the movements
+    if (evaluation < bestPlay.score) {
+      bestPlay = {turn.movements, evaluation};
+    }
   }
 
-  throw std::logic_error("Not implemented error");
+  // Return the best movements
+  return bestPlay;
 };
 
 Game Game::stateAfterMovement(const Player& player, Position ori,

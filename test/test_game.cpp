@@ -131,3 +131,100 @@ TEST(TestGame, TestForcedToGetOutOfHomeAndMove) {
     ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
   }
 }
+
+TEST(TestGame, TestMoveOnGoal) {
+  Position initialPosition = getPlayerInitialPosition(1);
+
+  Game::Players players{Player({1, {GOAL, GOAL - 1, initialPosition, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{1, 2};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 1, GOAL},
+                           {1, initialPosition, initialPosition + 10},
+                           {1, initialPosition + 10, initialPosition + 12}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i{0}; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
+}
+
+TEST(TestGame, TestCannotMoveOnGoal) {
+  Position initialPosition = getPlayerInitialPosition(1);
+
+  Game::Players players{Player({1, {GOAL, GOAL - 1, GOAL - 3, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{1, 2};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 1, GOAL}, {1, GOAL - 3, GOAL - 1}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i{0}; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
+}
+
+TEST(TestGame, TestCannotMoveAfterBoostOnGoal) {
+  Game::Players players{Player({1, {GOAL, GOAL - 1, 61, GOAL}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{1, 2};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 1, GOAL}, {1, 61, GOAL - 1}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i{0}; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
+}
+
+TEST(TestGame, TestConsecutiveGoalBoost) {
+  Game::Players players{Player({1, {GOAL, GOAL - 1, 62, 58}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{1, 2};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 1, GOAL},
+                           {1, 62, GOAL},
+                           {1, 58, GOAL - 4},
+                           {1, GOAL - 4, GOAL - 2}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i{0}; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
+}

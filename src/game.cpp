@@ -81,7 +81,7 @@ static Move constructMove(const Player& oldPlayer, const Player& newPlayer) {
 }
 
 static std::vector<Game::Turn> ulteriorMovements(
-    const Player& playerToMove, const std::vector<unsigned int>& advances,
+    const Player& playerToMove, const MovementsSequence& advances,
     const Game& game) {
   // If there are no more advances, return empty vector
   auto nextAdvance = std::next(advances.begin());
@@ -91,16 +91,51 @@ static std::vector<Game::Turn> ulteriorMovements(
                                             {nextAdvance, advances.end()});
 }
 
+static bool canTakeOutPieces(const Player& currentPlayer) {
+  auto homePieces = currentPlayer.indicesForHomePieces();
+  return !homePieces.empty();
+}
+
+std::vector<MovementsSequence> movementsSequences(const Player& currentPlayer,
+                                                  const DicePairRoll& dices) {
+  // If we can take out a piece we must move the 5 first of all
+  if (canTakeOutPieces(currentPlayer)) {
+    if (dices.first + dices.second == OUT_OF_HOME)
+      return {{OUT_OF_HOME}};
+    else if (dices.first == OUT_OF_HOME)
+      return {{dices.first, dices.second}};
+    else if (dices.second == OUT_OF_HOME)
+      return {{dices.second, dices.first}};
+  }
+
+  std::vector<MovementsSequence> movements;
+
+  // Regular case, no mandatory movements
+  movements.push_back({dices.first, dices.second});
+  if (dices.first != dices.second)
+    movements.push_back({dices.second, dices.first});
+  return movements;
+}
+
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
-    const Player& currentPlayer,
-    const std::vector<unsigned int>& advances) const {
+    const Player& currentPlayer, const MovementsSequence& advances) const {
   // Returns all the states I can access with this sequence of movements
   // The order of the sequence is fixed
 
   std::vector<Game::Turn> states;
 
   unsigned int advance = advances.front();
-  for (auto piece : currentPlayer.pieces) {
+
+  std::array<Position, 4> piecesToMove{currentPlayer.pieces};
+  // If the advance is 5 and I have pieces to take out from home, I cannot move
+  // any other piece
+  if (advance == OUT_OF_HOME) {
+    if (canTakeOutPieces(currentPlayer)) {
+      piecesToMove = {HOME, HOME, HOME, HOME};
+    }
+  }
+
+  for (auto piece : piecesToMove) {
     // Create a new game to not modify the current one
     Game newGame = *this;
     // Make the current player to move the current amount
@@ -141,19 +176,14 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
 
 std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices) const {
-  // Before the player can move must take out of home the pieces
-  auto homePieces = currentPlayer.indicesForHomePieces();
-  if (!homePieces.empty()) {
-  }
-
-  auto states1 =
-      allPossibleStatesFromSequence(currentPlayer, {dices.first, dices.second});
-  auto states2 =
-      allPossibleStatesFromSequence(currentPlayer, {dices.second, dices.first});
+  // From de dices get the sequences of movements
+  auto possibleMovements = movementsSequences(currentPlayer, dices);
   std::vector<Game::Turn> states;
-  states.insert(states.end(), states1.begin(), states1.end());
-  states.insert(states.end(), states2.begin(), states2.end());
-
+  for (const auto& sequence : possibleMovements) {
+    std::vector<Game::Turn> statesForSequence =
+        allPossibleStatesFromSequence(currentPlayer, sequence);
+    states.insert(states.end(), statesForSequence.begin(), statesForSequence.end());
+  }
   return states;
 }
 

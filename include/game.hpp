@@ -26,6 +26,9 @@ struct ScoredPlay {
   double score;
 };
 
+
+using MovementsSequence = std::vector<unsigned int>;
+
 class Game {
  public:
   using Players = std::array<Player, 2>;
@@ -42,7 +45,7 @@ class Game {
   std::vector<Turn> allPossibleStates(const Player&, const DicePairRoll&) const;
   std::vector<Turn> allPossibleStatesFromSequence(
       const Player& currentPlayer,
-      const std::vector<unsigned int>& advances) const;
+      const MovementsSequence& advances) const;
 
   ScoredPlay bestPlay(PlayerNumber, DicePairRoll);
   ScoredPlay bestPlay(const Player&, DicePairRoll);

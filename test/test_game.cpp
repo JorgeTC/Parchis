@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>  // for Test, ASSERT_EQ, Message, TestPartResult
 
-#include <memory>  // for allocator
+#include <vector>  // for allocator, vector
 
 #include "dices.hpp"   // for DicePairRoll
 #include "game.hpp"    // for Move, Play, Game, ScoredPlay, Game::Players
 #include "player.hpp"  // for Player
-#include "table.hpp"   // for GOAL, HOME
+#include "table.hpp"   // for HOME, GOAL, getPlayerInitialPosition
 
 TEST(TestGame, TestMoveToWin) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 2}}),
@@ -66,4 +66,68 @@ TEST(TestGame, TestDontGetTooCloseToGoal) {
   ASSERT_EQ(bestMove.player, expectedBestMove.player);
   ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
   ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+}
+
+TEST(TestGame, TestForcedToGetOutOfHome) {
+  Game::Players players{Player({1, {GOAL, GOAL, GOAL - 5, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  // Roll whose dices add up 5, which forces me to get out from home
+  DicePairRoll roll{4, 1};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, HOME, getPlayerInitialPosition(1)}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  const Move& bestMove = bestPlay[0];
+  const Move& expectedBestMove = expectedBestPlay[0];
+  ASSERT_EQ(bestMove.player, expectedBestMove.player);
+  ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+  ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+}
+
+TEST(TestGame, TestForcedToGetOutOfHomeTwice) {
+  Game::Players players{Player({1, {GOAL, GOAL - 5, HOME, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{5, 5};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  const Position initialPosition = getPlayerInitialPosition(1);
+  const Move outFromHomeMove{1, HOME, initialPosition};
+
+  ASSERT_EQ(bestPlay.size(), 2);
+  for (const Move& bestMove : bestPlay) {
+    ASSERT_EQ(bestMove.player, outFromHomeMove.player);
+    ASSERT_EQ(bestMove.origin, outFromHomeMove.origin);
+    ASSERT_EQ(bestMove.dest, outFromHomeMove.dest);
+  }
+}
+
+TEST(TestGame, TestForcedToGetOutOfHomeAndMove) {
+  Game::Players players{Player({1, {GOAL, GOAL - 1, HOME, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{6, 5};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  const Position initialPosition = getPlayerInitialPosition(1);
+  Play expectedBestPlay = {{1, HOME, initialPosition},
+                           {1, initialPosition, initialPosition + 6}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i = 0; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
 }

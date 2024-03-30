@@ -9,6 +9,8 @@
 #include "player.hpp"  // for Player, Player::WrongMove
 #include "table.hpp"   // for HOME, Position, isCommonPosition, PlayerNumber
 
+static constexpr unsigned int EXTRA_MOVEMENT_ON_GOAL = 10;
+
 static constexpr Game::Players loadPlayers() {
   return {Player({1, {HOME, HOME, HOME, HOME}}),
           Player({2, {HOME, HOME, HOME, HOME}})};
@@ -80,12 +82,39 @@ static Move constructMove(const Player& oldPlayer, const Player& newPlayer) {
   throw std::invalid_argument(oss.str());
 }
 
+static std::vector<Game::Turn> ulteriorMovementsWithBoost(
+    const Player& playerToMove,
+    MovementsSequence::const_iterator advances_begin,
+    MovementsSequence::const_iterator advances_end, const Game& game,
+    unsigned int boostAdvance) {
+  // Get the movements I have to do and add the boost
+  MovementsSequence nextMovements;
+  nextMovements.push_back(boostAdvance);
+  nextMovements.insert(nextMovements.end(), advances_begin, advances_end);
+
+  // Return the sequence of movements that can be done with this sequence of
+  // advances
+  auto movementsWithBoost{
+      game.allPossibleStatesFromSequence(playerToMove, nextMovements)};
+  return movementsWithBoost;
+}
+
 static std::vector<Game::Turn> ulteriorMovements(
     const Player& playerToMove, const MovementsSequence& advances,
-    const Game& game) {
+    const Game& game, bool gotToGoal) {
   // If there are no more advances, return empty vector
-  auto nextAdvance = std::next(advances.begin());
+  auto nextAdvance{std::next(advances.begin())};
   if (nextAdvance == advances.end()) return {};
+
+  if (gotToGoal) {
+    // Sequence of movements adding the boost
+    auto movementsWithGoalBoost =
+        ulteriorMovementsWithBoost(playerToMove, nextAdvance, advances.end(),
+                                   game, EXTRA_MOVEMENT_ON_GOAL);
+    // If the vector is empty, boost cannot be performed;
+    // but the rest of the dices must be executed. Cannot return.
+    if (!movementsWithGoalBoost.empty()) return movementsWithGoalBoost;
+  }
 
   return game.allPossibleStatesFromSequence(playerToMove,
                                             {nextAdvance, advances.end()});
@@ -124,6 +153,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
 
   std::vector<Game::Turn> states;
 
+  // Take the advance I will try to perform
   unsigned int advance = advances.front();
 
   std::array<Position, 4> piecesToMove{currentPlayer.pieces};
@@ -149,10 +179,13 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
       continue;
     }
 
+    // Check I got to goal, which lets me advance 10 positions
+    bool gotToGoal{move.dest == GOAL};
+
     // The movement can be performed on the current piece
     // Ask for all the movements that I can do now
     std::vector<Game::Turn> nextStates =
-        ulteriorMovements(playerToMove, advances, newGame);
+        ulteriorMovements(playerToMove, advances, newGame, gotToGoal);
 
     if (!nextStates.empty()) {
       for (auto nextState : nextStates) {
@@ -182,7 +215,8 @@ std::vector<Game::Turn> Game::allPossibleStates(
   for (const auto& sequence : possibleMovements) {
     std::vector<Game::Turn> statesForSequence =
         allPossibleStatesFromSequence(currentPlayer, sequence);
-    states.insert(states.end(), statesForSequence.begin(), statesForSequence.end());
+    states.insert(states.end(), statesForSequence.begin(),
+                  statesForSequence.end());
   }
   return states;
 }

@@ -228,3 +228,30 @@ TEST(TestGame, TestConsecutiveGoalBoost) {
     ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
   }
 }
+
+TEST(TestGame, TestGoalBoostWithFullDice) {
+    Position initialPosition = getPlayerInitialPosition(1);
+
+  Game::Players players{Player({1, {GOAL, GOAL - 4, initialPosition, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  Game game(players);
+
+  DicePairRoll roll{1, 3};
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+  Play expectedBestPlay = {{1, GOAL - 4, GOAL - 3},
+                           {1, GOAL - 3, GOAL},
+                           {1, initialPosition, initialPosition + 10}};
+
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i{0}; i < bestPlay.size(); i++) {
+    const auto& bestMove = bestPlay[i];
+    const auto& expectedBestMove = expectedBestPlay[i];
+
+    ASSERT_EQ(bestMove.player, expectedBestMove.player);
+    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+  }
+}
+

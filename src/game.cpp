@@ -104,7 +104,7 @@ static std::vector<Game::Turn> ulteriorMovements(
     const Player& playerToMove, const MovementsSequence& advances,
     const Game& game, bool gotToGoal, bool haveEaten) {
   // Discard the already performed advance
-  MovementsSequence::const_iterator nextAdvance{std::next(advances.begin())};
+  auto nextAdvance{std::next(advances.begin())};
 
   if (gotToGoal) {
     // Sequence of movements adding the boost
@@ -167,8 +167,8 @@ Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
     // I cannot eat myself
     if (player.playerNumber == eater.playerNumber) continue;
 
-    // If any of the pieces of this player is in the same position, I have eaten
-    // it
+    // If any of the pieces of this player is in the same position,
+    // I have eaten it
     for (auto piece : player.pieces) {
       if (piece == destPosition) return &player;
     }
@@ -217,11 +217,13 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     std::vector<Move> decisionMovements{move};
 
     // Check I ate one rival piece
-    auto eatenPlayer = newGame.eatenPlayer(playerToMove, move.dest);
+    Player* eatenPlayer{newGame.eatenPlayer(playerToMove, move.dest)};
     bool haveEaten{eatenPlayer != nullptr};
     // I ate someone, add the movement of taking its piece back home
     if (haveEaten) {
+      // Execute the movement to home
       eatenPlayer->pieceEaten(move.dest);
+      // Store the movement
       Move killingMove{eatenPlayer->playerNumber, move.dest, HOME};
       decisionMovements.push_back(killingMove);
     }

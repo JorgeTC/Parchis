@@ -4,6 +4,7 @@
 #include <stdexcept>  // for invalid_argument
 #include <string>     // for string
 #include <vector>
+
 #include "table.hpp"  // for HOME, Position, PlayerNumber
 
 class Player {

@@ -102,9 +102,7 @@ static std::vector<Game::Turn> ulteriorMovementsWithBoost(
 static std::vector<Game::Turn> ulteriorMovements(
     const Player& playerToMove, const MovementsSequence& advances,
     const Game& game, bool gotToGoal) {
-  // If there are no more advances, return empty vector
   auto nextAdvance{std::next(advances.begin())};
-  if (nextAdvance == advances.end()) return {};
 
   if (gotToGoal) {
     // Sequence of movements adding the boost
@@ -115,6 +113,9 @@ static std::vector<Game::Turn> ulteriorMovements(
     // but the rest of the dices must be executed. Cannot return.
     if (!movementsWithGoalBoost.empty()) return movementsWithGoalBoost;
   }
+
+  // If there are no more advances, return empty vector
+  if (nextAdvance == advances.end()) return {};
 
   return game.allPossibleStatesFromSequence(playerToMove,
                                             {nextAdvance, advances.end()});
@@ -190,7 +191,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     if (!nextStates.empty()) {
       for (auto nextState : nextStates) {
         const auto& nextMovements = nextState.movements;
-        Game::Turn turn{newGame.players, {move}};
+        Game::Turn turn{nextState.finalSate, {move}};
         turn.movements.insert(turn.movements.end(),
                               std::make_move_iterator(nextMovements.begin()),
                               std::make_move_iterator(nextMovements.end()));

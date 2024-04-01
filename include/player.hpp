@@ -4,6 +4,7 @@
 #include <stdexcept>  // for invalid_argument
 #include <string>     // for string
 #include <vector>
+
 #include "table.hpp"  // for HOME, Position, PlayerNumber
 
 class Player {
@@ -15,6 +16,9 @@ class Player {
 
   // Moves the piece to the returned position
   Position movePiece(Position pieceToMove, unsigned int positionsToMove);
+
+  // Moves the piece to home position
+  void pieceEaten(Position eatenPiece);
 
   struct PieceNotFound : public std::invalid_argument {
     using std::invalid_argument::invalid_argument;

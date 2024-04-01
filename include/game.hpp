@@ -26,7 +26,6 @@ struct ScoredPlay {
   double score;
 };
 
-
 using MovementsSequence = std::vector<unsigned int>;
 
 class Game {
@@ -44,12 +43,15 @@ class Game {
 
   std::vector<Turn> allPossibleStates(const Player&, const DicePairRoll&) const;
   std::vector<Turn> allPossibleStatesFromSequence(
-      const Player& currentPlayer,
-      const MovementsSequence& advances) const;
+      const Player& currentPlayer, const MovementsSequence& advances) const;
 
   ScoredPlay bestPlay(PlayerNumber, DicePairRoll);
   ScoredPlay bestPlay(const Player&, DicePairRoll);
   ScoredPlay bestPlay(const Player&, DiceRoll);
+
+  // Returns a pointer to the player who owns the piece
+  // I would eat on the given position
+  Player* eatenPlayer(const Player& eater, Position destPosition);
 
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);

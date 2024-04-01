@@ -229,20 +229,21 @@ TEST(TestGame, TestConsecutiveGoalBoost) {
   }
 }
 
-TEST(TestGame, TestGoalBoostWithFullDice) {
-    Position initialPosition = getPlayerInitialPosition(1);
+TEST(TestGame, TestEatAdversary) {
+  Position initialPosition = getPlayerInitialPosition(1);
 
-  Game::Players players{Player({1, {GOAL, GOAL - 4, initialPosition, HOME}}),
-                        Player({2, {HOME, HOME, HOME, HOME}})};
+  Game::Players players{Player({1, {GOAL, GOAL, GOAL, initialPosition}}),
+                        Player({2, {HOME, HOME, HOME, initialPosition + 3}})};
 
   Game game(players);
 
-  DicePairRoll roll{1, 3};
+  DicePairRoll roll{1, 2};
   ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
   const Play& bestPlay = bestPlayAndScore.play;
-  Play expectedBestPlay = {{1, GOAL - 4, GOAL - 3},
-                           {1, GOAL - 3, GOAL},
-                           {1, initialPosition, initialPosition + 10}};
+  Play expectedBestPlay = {{1, initialPosition, initialPosition + 1},
+                           {1, initialPosition + 1, initialPosition + 2},
+                           {2, initialPosition + 2, HOME},
+                           {1, initialPosition + 2, initialPosition + 22}};
 
   ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
   for (unsigned int i{0}; i < bestPlay.size(); i++) {
@@ -254,4 +255,3 @@ TEST(TestGame, TestGoalBoostWithFullDice) {
     ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
   }
 }
-

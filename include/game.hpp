@@ -51,6 +51,8 @@ class Game {
   ScoredPlay bestPlay(const Player&, DicePairRoll);
   ScoredPlay bestPlay(const Player&, DiceRoll);
 
+  Player* eatenPlayer(const Player& eater, Position destPosition);
+
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);
 

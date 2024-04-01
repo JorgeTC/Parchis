@@ -10,6 +10,7 @@
 #include "table.hpp"   // for HOME, Position, isCommonPosition, PlayerNumber
 
 static constexpr unsigned int EXTRA_MOVEMENT_ON_GOAL = 10;
+static constexpr unsigned int EXTRA_MOVEMENT_ON_KILL = 20;
 
 static constexpr Game::Players loadPlayers() {
   return {Player({1, {HOME, HOME, HOME, HOME}}),
@@ -101,8 +102,9 @@ static std::vector<Game::Turn> ulteriorMovementsWithBoost(
 
 static std::vector<Game::Turn> ulteriorMovements(
     const Player& playerToMove, const MovementsSequence& advances,
-    const Game& game, bool gotToGoal) {
-  auto nextAdvance{std::next(advances.begin())};
+    const Game& game, bool gotToGoal, bool haveEaten) {
+  // Discard the already performed advance
+  MovementsSequence::const_iterator nextAdvance{std::next(advances.begin())};
 
   if (gotToGoal) {
     // Sequence of movements adding the boost
@@ -112,6 +114,15 @@ static std::vector<Game::Turn> ulteriorMovements(
     // If the vector is empty, boost cannot be performed;
     // but the rest of the dices must be executed. Cannot return.
     if (!movementsWithGoalBoost.empty()) return movementsWithGoalBoost;
+  }
+  if (haveEaten) {
+    // Sequence of movements adding the boost
+    auto movementsWithKillBoost =
+        ulteriorMovementsWithBoost(playerToMove, nextAdvance, advances.end(),
+                                   game, EXTRA_MOVEMENT_ON_KILL);
+    // If the vector is empty, boost cannot be performed;
+    // but the rest of the dices must be executed. Cannot return.
+    if (!movementsWithKillBoost.empty()) return movementsWithKillBoost;
   }
 
   // If there are no more advances, return empty vector
@@ -147,6 +158,25 @@ std::vector<MovementsSequence> movementsSequences(const Player& currentPlayer,
   return movements;
 }
 
+Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
+  // If the position is not dangerous, no further considerations
+  if (!isEatingPosition(destPosition)) return nullptr;
+
+  // Search for a player with a piece in the position
+  for (Player& player : players) {
+    // I cannot eat myself
+    if (player.playerNumber == eater.playerNumber) continue;
+
+    // If any of the pieces of this player is in the same position, I have eaten
+    // it
+    for (auto piece : player.pieces) {
+      if (piece == destPosition) return &player;
+    }
+  }
+
+  return nullptr;
+}
+
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     const Player& currentPlayer, const MovementsSequence& advances) const {
   // Returns all the states I can access with this sequence of movements
@@ -175,23 +205,36 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     try {
       move.dest = playerToMove.movePiece(piece, advance);
     } catch (Player::WrongMove e) {
-      // The current piece cannot be moved as much as wanted, so no new state
-      // can be created
+      // The current piece cannot be moved as much as wanted,
+      // so no new state can be created
       continue;
     }
 
     // Check I got to goal, which lets me advance 10 positions
     bool gotToGoal{move.dest == GOAL};
 
+    // Movements derived from the current movement
+    std::vector<Move> decisionMovements{move};
+
+    // Check I ate one rival piece
+    auto eatenPlayer = newGame.eatenPlayer(playerToMove, move.dest);
+    bool haveEaten{eatenPlayer != nullptr};
+    // I ate someone, add the movement of taking its piece back home
+    if (haveEaten) {
+      eatenPlayer->pieceEaten(move.dest);
+      Move killingMove{eatenPlayer->playerNumber, move.dest, HOME};
+      decisionMovements.push_back(killingMove);
+    }
+
     // The movement can be performed on the current piece
     // Ask for all the movements that I can do now
-    std::vector<Game::Turn> nextStates =
-        ulteriorMovements(playerToMove, advances, newGame, gotToGoal);
+    std::vector<Game::Turn> nextStates = ulteriorMovements(
+        playerToMove, advances, newGame, gotToGoal, haveEaten);
 
     if (!nextStates.empty()) {
       for (auto nextState : nextStates) {
         const auto& nextMovements = nextState.movements;
-        Game::Turn turn{nextState.finalSate, {move}};
+        Game::Turn turn{nextState.finalSate, decisionMovements};
         turn.movements.insert(turn.movements.end(),
                               std::make_move_iterator(nextMovements.begin()),
                               std::make_move_iterator(nextMovements.end()));
@@ -200,7 +243,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     } else {
       // There are no more pieces to move, so I add to the vector the current
       // movement
-      Game::Turn turn{newGame.players, {move}};
+      Game::Turn turn{newGame.players, decisionMovements};
       states.push_back(turn);
     }
   }

@@ -115,6 +115,16 @@ Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
   return toMove;
 }
 
+void Player::pieceEaten(Position eatenPiece) {
+  // Check I have the pice I was asked to move
+  auto itPieceToMove = std::find(pieces.begin(), pieces.end(), eatenPiece);
+  if (itPieceToMove == pieces.end())
+    throw PieceNotFound("No piece to be moved");
+
+  Position& toMove = *itPieceToMove;
+  toMove = HOME;
+}
+
 bool Player::hasWon() const {
   return std::all_of(pieces.begin(), pieces.end(),
                      [](Position piece) { return piece == GOAL; });

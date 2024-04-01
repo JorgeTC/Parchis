@@ -28,13 +28,6 @@ Position getPlayerLastPosition(PlayerNumber player) {
   }
 }
 
-bool isSafePosition(Position position) {
-  const static std::set<Position> safePositions = {1,  8,  13, 18, 25, 30,
-                                                   35, 42, 47, 52, 59, 64};
-
-  return safePositions.find(position) != safePositions.end();
-}
-
 Position correctPosition(Position position) {
   // If the position is in a common position and the number is bigger than it
   // should, take it back to the range [1, totalPositions].

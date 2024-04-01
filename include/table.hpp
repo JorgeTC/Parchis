@@ -35,7 +35,26 @@ Position getPlayerInitialPosition(PlayerNumber player);
 Position getPlayerLastPosition(PlayerNumber player);
 
 // Returns whether a piece in this position can be eaten
-bool isSafePosition(Position position);
+static constexpr bool isSafePosition(Position position) {
+  switch (position) {
+    case 1:
+    case 8:
+    case 13:
+    case 18:
+    case 25:
+    case 30:
+    case 35:
+    case 42:
+    case 47:
+    case 52:
+    case 59:
+    case 64:
+      return true;
+
+    default:
+      return false;
+  }
+}
 
 // Returns whether a position is a common one, nor home, hallway or goal
 static constexpr bool isCommonPosition(Position position) {
@@ -45,6 +64,11 @@ static constexpr bool isCommonPosition(Position position) {
 // Returns whether a position is in the hallway, it does not include the goal
 static constexpr bool isHallwayPosition(Position position) {
   return position >= firstHallway && position <= finalHallway;
+};
+
+// Returns whether a piece in this position can be eaten
+static constexpr bool isEatingPosition(Position position) {
+  return isCommonPosition(position) && !isSafePosition(position);
 };
 
 // If the number is too big, take it back to the correct range

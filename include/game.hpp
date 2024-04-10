@@ -67,5 +67,5 @@ class Game {
   };
 
   Players players;
-  std::set<Position> bridges;
+  std::set<Position> barriers;
 };

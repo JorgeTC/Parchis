@@ -17,23 +17,23 @@ static constexpr Game::Players loadPlayers() {
           Player({2, {HOME, HOME, HOME, HOME}})};
 }
 
-static std::set<Position> loadBridges(const Game::Players& players) {
-  std::set<Position> bridges{};
+static std::set<Position> loadBarriers(const Game::Players& players) {
+  std::set<Position> barriers{};
   for (Position piece1 : players[0].pieces) {
     if (!isCommonPosition(piece1)) continue;
     for (Position piece2 : players[1].pieces) {
       if (!isCommonPosition(piece2)) continue;
-      if (piece1 == piece2) bridges.insert(piece1);
+      if (piece1 == piece2) barriers.insert(piece1);
     }
   }
 
-  return bridges;
+  return barriers;
 }
 
-Game::Game() : players(loadPlayers()), bridges(loadBridges(players)) {}
+Game::Game() : players(loadPlayers()), barriers(loadBarriers(players)) {}
 
 Game::Game(const Players& players)
-    : players(players), bridges(loadBridges(players)){};
+    : players(players), barriers(loadBarriers(players)){};
 
 Player& getPlayer(Game::Players& players, PlayerNumber player) {
   switch (player) {

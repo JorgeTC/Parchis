@@ -1,10 +1,10 @@
 #pragma once
 
 #include <array>      // for array
+#include <set>        // for set
 #include <stdexcept>  // for invalid_argument
 #include <string>     // for string
-#include <vector>
-#include <set>
+#include <vector>     // for vector
 
 #include "table.hpp"  // for HOME, Position, PlayerNumber
 
@@ -19,6 +19,9 @@ class Player {
   Position movePiece(Position pieceToMove, unsigned int positionsToMove);
   Position movePiece(Position pieceToMove, unsigned int positionsToMove,
                      const std::set<Position>& barriers);
+
+  bool hasTwoPiecesInPosition(Position targetPosition) const;
+  bool canGoToInitialPosition() const;
 
   // Moves the piece to home position
   void pieceEaten(Position eatenPiece);

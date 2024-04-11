@@ -1,6 +1,5 @@
 #include "table.hpp"
 
-#include <set>        // for operator==, set, set<>::const_iterator
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basic...
 #include <stdexcept>  // for invalid_argument
 

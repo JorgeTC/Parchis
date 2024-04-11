@@ -1,11 +1,11 @@
 #include "player.hpp"
 
-#include <algorithm>  // for find
-#include <array>      // for array<>::iterator, array
-#include <set>
-#include <sstream>  // for operator<<, ostringstream, basic_ostream, basic...
+#include <algorithm>  // for find, all_of
+#include <array>      // for array, array<>::const_iterator, array<>::iterator
+#include <set>        // for set, operator==, set<>::const_iterator
+#include <sstream>    // for operator<<, ostringstream, basic_ostream, basic...
 
-#include "dices.hpp"  // for getDiceValProbability, averageDiceRoll
+#include "dices.hpp"  // for getDiceValProbability, OUT_OF_HOME, averageDice...
 #include "table.hpp"  // for Position, getPlayerInitialPosition, getPlayerLa...
 
 static double piecePunctuation(Position piece, Position finalPosition,
@@ -44,6 +44,20 @@ double Player::punctuation() const {
   }
 
   return punctuation;
+}
+
+bool Player::hasTwoPiecesInPosition(Position targetPosition) const {
+  bool seen = false;
+  for (Position piece : pieces) {
+    if (piece != targetPosition) continue;
+    // If this is the second time i see this position, exit the function
+    if (seen) return true;
+    // Save that I have seen it once
+    seen = true;
+  }
+
+  // I have not seen the position twice
+  return false;
 }
 
 static Position destinyPosition(Position pieceToMove,
@@ -117,8 +131,11 @@ static bool existBlockingBarriers(Position origin, Position destiny,
   // I expect the destiny position to be right
   // Just have to check there are no barriers on the initial position
   if (origin == HOME) {
-    // The only barrier that can affect me is the one on the destiny
-    return barriers.find(destiny) != barriers.end();
+    std::ostringstream oss;
+    oss << "This function only checks movements across the table. "
+        << "Don't call it to exit from home.";
+
+    throw std::invalid_argument(oss.str());
   }
 
   // There are not barriers in the hallway
@@ -137,9 +154,16 @@ static bool existBlockingBarriers(Position origin, Position destiny,
   }
 }
 
+bool Player::canGoToInitialPosition() const {
+  // The only reason I cannot go to the first position is if there are more than
+  // two pieces of mine
+  Position initialPosition = getPlayerInitialPosition(playerNumber);
+  return !hasTwoPiecesInPosition(initialPosition);
+}
+
 Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove,
                            const std::set<Position>& barriers) {
-  // Check I have the pice I was asked to move
+  // Check I have the piece I was asked to move
   auto itPieceToMove = std::find(pieces.begin(), pieces.end(), pieceToMove);
   if (itPieceToMove == pieces.end())
     throw PieceNotFound("No piece to be moved");
@@ -148,11 +172,19 @@ Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove,
   Position destiny = destinyPosition(toMove, positionsToMove, playerNumber);
 
   // Check the movement can be performed
-  if (existBlockingBarriers(toMove, destiny, barriers)) {
-    std::ostringstream oss;
-    oss << "There are barriers that don't allow to move " << toMove << " to "
-        << destiny << ".";
-    throw Player::WrongMove(oss.str());
+  if (pieceToMove == HOME) {
+    if (!canGoToInitialPosition()) {
+      std::ostringstream oss;
+      oss << "Initial position is too busy for me to exit." << destiny << ".";
+      throw Player::WrongMove(oss.str());
+    }
+  } else {
+    if (existBlockingBarriers(toMove, destiny, barriers)) {
+      std::ostringstream oss;
+      oss << "There are barriers that don't allow to move " << toMove << " to "
+          << destiny << ".";
+      throw Player::WrongMove(oss.str());
+    }
   }
 
   // Execute the movement

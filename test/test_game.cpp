@@ -1,11 +1,13 @@
-#include <gtest/gtest.h>  // for Test, ASSERT_EQ, Message, TestPartResult
+#include <gtest/gtest.h>  // for Test, SuiteApiResolver, TestInfo (ptr only)
 
+#include <set>     // for operator==, set
+#include <string>  // for string
 #include <vector>  // for allocator, vector
 
 #include "dices.hpp"   // for DicePairRoll
-#include "game.hpp"    // for Move, Play, Game, ScoredPlay, Game::Players
+#include "game.hpp"    // for Game, Play, Game::Players, Move, ScoredPlay
 #include "player.hpp"  // for Player
-#include "table.hpp"   // for HOME, GOAL, getPlayerInitialPosition
+#include "table.hpp"   // for GOAL, HOME, getPlayerInitialPosition, Position
 
 static void testPlay(const Game::Players& players, DicePairRoll dices,
                      PlayerNumber player, const Play& expectedBestPlay) {
@@ -254,8 +256,6 @@ TEST(TestGame, TestLoadBarrierSamePlayer) {
 }
 
 TEST(TestGame, TestLoadBarrierDifferentPlayers) {
-  Position initialPosition = getPlayerInitialPosition(1);
-
   Game::Players players{Player({1, {GOAL, 1, 61, GOAL - 1}}),
                         Player({2, {GOAL, 1, 62, GOAL - 1}})};
 
@@ -265,8 +265,6 @@ TEST(TestGame, TestLoadBarrierDifferentPlayers) {
 }
 
 TEST(TestGame, TestNotBarrierOnHallway) {
-  Position initialPosition = getPlayerInitialPosition(1);
-
   // Create a combination in which player 1 could eat player 2
   // if it was not for the barrier
   Game::Players players{Player({1, {HOME, HOME, GOAL - 1, GOAL - 1}}),
@@ -323,9 +321,8 @@ TEST(TestGame, TestGoOutAfterRemoveBarrier) {
 TEST(TestGame, TestCreateBarrierAfterMove) {
   Position initialPosition = getPlayerInitialPosition(1);
 
-  Game::Players players{
-      Player({1, {GOAL, GOAL, 1, HOME}}),
-      Player({2, {HOME, HOME, 8, HOME}})};
+  Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
+                        Player({2, {HOME, HOME, 8, HOME}})};
 
   DicePairRoll roll{4, 3};
   Play expectedBestPlay = {{1, 1, 5},
@@ -351,4 +348,50 @@ TEST(TestGame, TestCreateBarrierAfterMove) {
   }
 
   ASSERT_TRUE(game.barriers == std::set<Position>{8});
+}
+
+TEST(TestGame, TestEatOnExit) {
+  Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
+                        Player({2, {HOME, HOME, 1, HOME}})};
+
+  DicePairRoll roll{2, 3};
+
+  Play expectedBestPlay = {{1, HOME, 1}, {2, 1, HOME}, {1, 1, 21}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestNotEatOnExit) {
+  Game::Players players{Player({1, {GOAL, GOAL, HOME, HOME}}),
+                        Player({2, {HOME, HOME, 1, HOME}})};
+
+  DicePairRoll roll{2, 3};
+
+  Play expectedBestPlay = {{1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestEnemyBarrierOnExit) {
+  Game::Players players{Player({1, {GOAL, GOAL, HOME, HOME}}),
+                        Player({2, {HOME, HOME, 1, 1}})};
+
+  DicePairRoll roll{5, 5};
+
+  Play expectedBestPlay = {
+      {1, HOME, 1}, {2, 1, HOME}, {1, 1, 21}, {1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestExitAfterBreakingBarrierWithBoost) {
+  Game::Players players{Player({1, {59, 1, 1, HOME}}),
+                        Player({2, {HOME, HOME, HOME, 60}})};
+
+  DicePairRoll roll{1, 5};
+
+  Play expectedBestPlay = {
+      {1, 59, 60}, {2, 60, HOME}, {1, 1, 21}, {1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
 }

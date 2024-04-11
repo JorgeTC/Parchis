@@ -1,8 +1,9 @@
 #include "game.hpp"
 
-#include <array>      // for array
-#include <cmath>      // for INFINITY
-#include <iterator>   // for move_iterator, make_move_iterator, next
+#include <array>     // for array
+#include <cmath>     // for INFINITY
+#include <iterator>  // for move_iterator, make_move_iterator, next
+#include <set>
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error
 
@@ -143,34 +144,20 @@ static std::vector<Game::Turn> ulteriorMovements(
                                             {nextAdvance, advances.end()});
 }
 
-static bool hasTwoPiecesInPosition(const Player& currentPlayer,
-                                   Position targetPosition) {
-  bool seen = false;
-  for (Position piece : currentPlayer.pieces) {
-    if (piece != targetPosition) continue;
-    // If this is the second time i see this position, exit the function
-    if (seen) return true;
-    // Save that I have seen it once
-    seen = true;
-  }
-
-  // I have not seen the position twice
-  return false;
-}
-
 static bool canTakeOutPieces(const Player& currentPlayer) {
   // Check I have pieces to take out from home
   auto homePieces = currentPlayer.indicesForHomePieces();
   bool hasPiecesAtHome = !homePieces.empty();
+  if (!hasPiecesAtHome) return false;
 
   // Check on the inital position the is space for one more piece
   // Only need to check I have not two pieces of mine on the initial position
   Position initialPosition =
       getPlayerInitialPosition(currentPlayer.playerNumber);
   bool isSpaceInInitialPosition =
-      !hasTwoPiecesInPosition(currentPlayer, initialPosition);
+      !currentPlayer.hasTwoPiecesInPosition(initialPosition);
 
-  return hasPiecesAtHome && isSpaceInInitialPosition;
+  return isSpaceInInitialPosition;
 }
 
 static std::vector<MovementsSequence> movementsSequences(
@@ -194,9 +181,55 @@ static std::vector<MovementsSequence> movementsSequences(
   return movements;
 }
 
+static Player* eatenPlayerOnSafePosition(const Player& eater,
+                                         Game::Players& players,
+                                         Position destPosition) {
+  Player* eaten{nullptr};
+  unsigned int piecesCounter = 0;
+  // I must check there are three pieces on this position and return the enemy
+  // who is here
+  for (Player& player : players) {
+    // If any of the pieces of this player is in the same position,
+    // I have eaten it
+    for (Position piece : player.pieces) {
+      if (piece != destPosition) continue;
+
+      // Count a piece that is on this position
+      piecesCounter += 1;
+      // If the piece is from an enemy, store it
+      if (player.playerNumber != eater.playerNumber) {
+        eaten = &player;
+      }
+    }
+  }
+
+  // If there are three pieces, there is no space
+  // for the one that have just arrived
+  // so one of the pieces that were there will be eaten.
+  if (piecesCounter == 3) {
+    return eaten;
+  }
+  // There is space for the piece so no other piece is sent to home
+  else {
+    return nullptr;
+  }
+}
+
 Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
-  // If the position is not dangerous, no further considerations
-  if (!isEatingPosition(destPosition)) return nullptr;
+  if (!isEatingPosition(destPosition)) {
+    // If the position is not dangerous, no further considerations
+    if (destPosition != getPlayerInitialPosition(eater.playerNumber)) {
+      return nullptr;
+    }
+
+    // It is possible to eat the adversary if there are three pieces on this
+    // position. One of those will be from the enemy
+    if (barriers.find(destPosition) != barriers.end()) {
+      return eatenPlayerOnSafePosition(eater, players, destPosition);
+    } else {
+      return nullptr;
+    }
+  }
 
   // Search for a player with a piece in the position
   for (Player& player : players) {
@@ -205,7 +238,7 @@ Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
 
     // If any of the pieces of this player is in the same position,
     // I have eaten it
-    for (auto piece : player.pieces) {
+    for (Position piece : player.pieces) {
       if (piece == destPosition) return &player;
     }
   }
@@ -223,6 +256,16 @@ Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
   Position destPosition = player.movePiece(piece, advance, barriers);
   barriers = loadBarriers(players);
   return destPosition;
+};
+
+void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
+  Player& playerToMove = getPlayer(playerNumber);
+  pieceEaten(playerToMove, eatenPiece);
+};
+
+void Game::pieceEaten(Player& player, Position eatenPiece) {
+  player.pieceEaten(eatenPiece);
+  barriers = loadBarriers(players);
 };
 
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
@@ -271,7 +314,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     // I ate someone, add the movement of taking its piece back home
     if (haveEaten) {
       // Execute the movement to home
-      eatenPlayer->pieceEaten(move.dest);
+      newGame.pieceEaten(*eatenPlayer, move.dest);
       // Store the movement
       Move killingMove{eatenPlayer->playerNumber, move.dest, HOME};
       decisionMovements.push_back(killingMove);

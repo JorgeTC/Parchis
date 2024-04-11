@@ -53,6 +53,16 @@ class Game {
   // I would eat on the given position
   Player* eatenPlayer(const Player& eater, Position destPosition);
 
+  // Move the piece and update the barrier set
+  Position movePiece(PlayerNumber playerNumber, Position piece,
+                     unsigned int advance);
+  Position movePiece(Player& player, Position piece,
+                     unsigned int advance);
+
+  // Move the piece to home and update the barrier set
+  void pieceEaten(PlayerNumber playerNumber, Position eatenPiece);
+  void pieceEaten(Player& player, Position eatenPiece);
+
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);
 
@@ -67,5 +77,5 @@ class Game {
   };
 
   Players players;
-  std::set<Position> bridges;
+  std::set<Position> barriers;
 };

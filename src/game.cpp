@@ -1,8 +1,9 @@
 #include "game.hpp"
 
-#include <array>      // for array
-#include <cmath>      // for INFINITY
-#include <iterator>   // for move_iterator, make_move_iterator, next
+#include <array>     // for array
+#include <cmath>     // for INFINITY
+#include <iterator>  // for move_iterator, make_move_iterator, next
+#include <set>
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error
 
@@ -17,23 +18,34 @@ static constexpr Game::Players loadPlayers() {
           Player({2, {HOME, HOME, HOME, HOME}})};
 }
 
-static std::set<Position> loadBridges(const Game::Players& players) {
-  std::set<Position> bridges{};
-  for (Position piece1 : players[0].pieces) {
-    if (!isCommonPosition(piece1)) continue;
-    for (Position piece2 : players[1].pieces) {
-      if (!isCommonPosition(piece2)) continue;
-      if (piece1 == piece2) bridges.insert(piece1);
+static std::set<Position> loadBarriers(const Game::Players& players) {
+  std::set<Position> notEmptyPositions{};
+  std::set<Position> barriers{};
+
+  for (const Player& player : players) {
+    for (const Position piece : player.pieces) {
+      // If the position cannot have a barrier, go on
+      if (!isCommonPosition(piece)) continue;
+
+      // Check I know there is another piece on this position
+      if (notEmptyPositions.find(piece) != notEmptyPositions.end()) {
+        // then I know this second piece creates a barrier.
+        barriers.insert(piece);
+      } else {
+        // It is the first piece I see on this position,
+        // so I store it in case I see another piece in this position
+        notEmptyPositions.insert(piece);
+      }
     }
   }
 
-  return bridges;
+  return barriers;
 }
 
-Game::Game() : players(loadPlayers()), bridges(loadBridges(players)) {}
+Game::Game() : players(loadPlayers()), barriers(loadBarriers(players)) {}
 
 Game::Game(const Players& players)
-    : players(players), bridges(loadBridges(players)){};
+    : players(players), barriers(loadBarriers(players)){};
 
 Player& getPlayer(Game::Players& players, PlayerNumber player) {
   switch (player) {
@@ -133,12 +145,23 @@ static std::vector<Game::Turn> ulteriorMovements(
 }
 
 static bool canTakeOutPieces(const Player& currentPlayer) {
+  // Check I have pieces to take out from home
   auto homePieces = currentPlayer.indicesForHomePieces();
-  return !homePieces.empty();
+  bool hasPiecesAtHome = !homePieces.empty();
+  if (!hasPiecesAtHome) return false;
+
+  // Check on the inital position the is space for one more piece
+  // Only need to check I have not two pieces of mine on the initial position
+  Position initialPosition =
+      getPlayerInitialPosition(currentPlayer.playerNumber);
+  bool isSpaceInInitialPosition =
+      !currentPlayer.hasTwoPiecesInPosition(initialPosition);
+
+  return isSpaceInInitialPosition;
 }
 
-std::vector<MovementsSequence> movementsSequences(const Player& currentPlayer,
-                                                  const DicePairRoll& dices) {
+static std::vector<MovementsSequence> movementsSequences(
+    const Player& currentPlayer, const DicePairRoll& dices) {
   // If we can take out a piece we must move the 5 first of all
   if (canTakeOutPieces(currentPlayer)) {
     if (dices.first + dices.second == OUT_OF_HOME)
@@ -158,9 +181,55 @@ std::vector<MovementsSequence> movementsSequences(const Player& currentPlayer,
   return movements;
 }
 
+static Player* eatenPlayerOnSafePosition(const Player& eater,
+                                         Game::Players& players,
+                                         Position destPosition) {
+  Player* eaten{nullptr};
+  unsigned int piecesCounter = 0;
+  // I must check there are three pieces on this position and return the enemy
+  // who is here
+  for (Player& player : players) {
+    // If any of the pieces of this player is in the same position,
+    // I have eaten it
+    for (Position piece : player.pieces) {
+      if (piece != destPosition) continue;
+
+      // Count a piece that is on this position
+      piecesCounter += 1;
+      // If the piece is from an enemy, store it
+      if (player.playerNumber != eater.playerNumber) {
+        eaten = &player;
+      }
+    }
+  }
+
+  // If there are three pieces, there is no space
+  // for the one that have just arrived
+  // so one of the pieces that were there will be eaten.
+  if (piecesCounter == 3) {
+    return eaten;
+  }
+  // There is space for the piece so no other piece is sent to home
+  else {
+    return nullptr;
+  }
+}
+
 Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
-  // If the position is not dangerous, no further considerations
-  if (!isEatingPosition(destPosition)) return nullptr;
+  if (!isEatingPosition(destPosition)) {
+    // If the position is not dangerous, no further considerations
+    if (destPosition != getPlayerInitialPosition(eater.playerNumber)) {
+      return nullptr;
+    }
+
+    // It is possible to eat the adversary if there are three pieces on this
+    // position. One of those will be from the enemy
+    if (barriers.find(destPosition) != barriers.end()) {
+      return eatenPlayerOnSafePosition(eater, players, destPosition);
+    } else {
+      return nullptr;
+    }
+  }
 
   // Search for a player with a piece in the position
   for (Player& player : players) {
@@ -169,13 +238,35 @@ Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
 
     // If any of the pieces of this player is in the same position,
     // I have eaten it
-    for (auto piece : player.pieces) {
+    for (Position piece : player.pieces) {
       if (piece == destPosition) return &player;
     }
   }
 
   return nullptr;
 }
+
+Position Game::movePiece(PlayerNumber playerNumber, Position piece,
+                         unsigned int advance) {
+  Player& playerToMove = getPlayer(playerNumber);
+  return movePiece(playerToMove, piece, advance);
+};
+
+Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
+  Position destPosition = player.movePiece(piece, advance, barriers);
+  barriers = loadBarriers(players);
+  return destPosition;
+};
+
+void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
+  Player& playerToMove = getPlayer(playerNumber);
+  pieceEaten(playerToMove, eatenPiece);
+};
+
+void Game::pieceEaten(Player& player, Position eatenPiece) {
+  player.pieceEaten(eatenPiece);
+  barriers = loadBarriers(players);
+};
 
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     const Player& currentPlayer, const MovementsSequence& advances) const {
@@ -196,14 +287,15 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     }
   }
 
-  for (auto piece : piecesToMove) {
+  for (Position piece : piecesToMove) {
     // Create a new game to not modify the current one
     Game newGame = *this;
     // Make the current player to move the current amount
     Player& playerToMove = newGame.getPlayer(currentPlayer.playerNumber);
     Move move{currentPlayer.playerNumber, piece};
     try {
-      move.dest = playerToMove.movePiece(piece, advance);
+      // Move the piece calling the Game object to get the barriers updated
+      move.dest = newGame.movePiece(playerToMove, piece, advance);
     } catch (Player::WrongMove e) {
       // The current piece cannot be moved as much as wanted,
       // so no new state can be created
@@ -222,7 +314,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     // I ate someone, add the movement of taking its piece back home
     if (haveEaten) {
       // Execute the movement to home
-      eatenPlayer->pieceEaten(move.dest);
+      newGame.pieceEaten(*eatenPlayer, move.dest);
       // Store the movement
       Move killingMove{eatenPlayer->playerNumber, move.dest, HOME};
       decisionMovements.push_back(killingMove);
@@ -230,22 +322,22 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
 
     // The movement can be performed on the current piece
     // Ask for all the movements that I can do now
-    std::vector<Game::Turn> nextStates = ulteriorMovements(
+    std::vector<Turn> nextStates = ulteriorMovements(
         playerToMove, advances, newGame, gotToGoal, haveEaten);
 
     if (!nextStates.empty()) {
-      for (auto nextState : nextStates) {
-        const auto& nextMovements = nextState.movements;
-        Game::Turn turn{nextState.finalSate, decisionMovements};
+      for (const Turn& nextState : nextStates) {
+        const Play& nextMovements = nextState.movements;
+        Turn turn{nextState.finalSate, decisionMovements};
         turn.movements.insert(turn.movements.end(),
                               std::make_move_iterator(nextMovements.begin()),
                               std::make_move_iterator(nextMovements.end()));
         states.push_back(turn);
       }
     } else {
-      // There are no more pieces to move, so I add to the vector the current
-      // movement
-      Game::Turn turn{newGame.players, decisionMovements};
+      // There are no more pieces to move,
+      // so I add to the vector the current movement
+      Turn turn{newGame.players, decisionMovements};
       states.push_back(turn);
     }
   }
@@ -257,9 +349,9 @@ std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices) const {
   // From de dices get the sequences of movements
   auto possibleMovements = movementsSequences(currentPlayer, dices);
-  std::vector<Game::Turn> states;
+  std::vector<Turn> states;
   for (const auto& sequence : possibleMovements) {
-    std::vector<Game::Turn> statesForSequence =
+    std::vector<Turn> statesForSequence =
         allPossibleStatesFromSequence(currentPlayer, sequence);
     states.insert(states.end(), statesForSequence.begin(),
                   statesForSequence.end());
@@ -268,7 +360,7 @@ std::vector<Game::Turn> Game::allPossibleStates(
 }
 
 double Game::nonRecursiveEvaluateState(const Player& currentPlayer) const {
-  double value = 0;
+  double value{0.0};
   for (const Player& player : players) {
     double playerValue = player.punctuation();
     if (player.playerNumber == currentPlayer.playerNumber) playerValue *= -1;
@@ -291,8 +383,8 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
 
   ScoredPlay bestPlay = {{}, INFINITY};
   // Get all the possible states I can get with this dice roll
-  std::vector<Game::Turn> turns{allPossibleStates(player, dices)};
-  for (auto turn : turns) {
+  std::vector<Turn> turns{allPossibleStates(player, dices)};
+  for (const Turn& turn : turns) {
     // Get the final state of the player that has made a movement
     const Player& finalPlayerSate =
         ::getPlayer(turn.finalSate, player.playerNumber);
@@ -319,7 +411,7 @@ Game Game::stateAfterMovement(const Player& player, Position ori,
   Players copiedPlayers = players;
   Player& playerToMove = copiedPlayers[player.playerNumber - 1];
   try {
-    playerToMove.movePiece(ori, positionsToMove);
+    playerToMove.movePiece(ori, positionsToMove, barriers);
   } catch (const Player::WrongMove& moveException) {
     std::ostringstream oss;
     oss << "Piece at position " << ori << " cannot be moved with a "

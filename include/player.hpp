@@ -4,6 +4,7 @@
 #include <stdexcept>  // for invalid_argument
 #include <string>     // for string
 #include <vector>
+#include <set>
 
 #include "table.hpp"  // for HOME, Position, PlayerNumber
 
@@ -16,6 +17,8 @@ class Player {
 
   // Moves the piece to the returned position
   Position movePiece(Position pieceToMove, unsigned int positionsToMove);
+  Position movePiece(Position pieceToMove, unsigned int positionsToMove,
+                     const std::set<Position>& barriers);
 
   // Moves the piece to home position
   void pieceEaten(Position eatenPiece);

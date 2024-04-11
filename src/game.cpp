@@ -18,12 +18,23 @@ static constexpr Game::Players loadPlayers() {
 }
 
 static std::set<Position> loadBarriers(const Game::Players& players) {
+  std::set<Position> notEmptyPositions{};
   std::set<Position> barriers{};
-  for (Position piece1 : players[0].pieces) {
-    if (!isCommonPosition(piece1)) continue;
-    for (Position piece2 : players[1].pieces) {
-      if (!isCommonPosition(piece2)) continue;
-      if (piece1 == piece2) barriers.insert(piece1);
+
+  for (const Player& player : players) {
+    for (const Position piece : player.pieces) {
+      // If the position cannot have a barrier, go on
+      if (!isCommonPosition(piece)) continue;
+
+      // Check I know there is another piece on this position
+      if (notEmptyPositions.find(piece) != notEmptyPositions.end()) {
+        // then I know this second piece creates a barrier.
+        barriers.insert(piece);
+      } else {
+        // It is the first piece I see on this position,
+        // so I store it in case I see another piece in this position
+        notEmptyPositions.insert(piece);
+      }
     }
   }
 
@@ -132,13 +143,38 @@ static std::vector<Game::Turn> ulteriorMovements(
                                             {nextAdvance, advances.end()});
 }
 
-static bool canTakeOutPieces(const Player& currentPlayer) {
-  auto homePieces = currentPlayer.indicesForHomePieces();
-  return !homePieces.empty();
+static bool hasTwoPiecesInPosition(const Player& currentPlayer,
+                                   Position targetPosition) {
+  bool seen = false;
+  for (Position piece : currentPlayer.pieces) {
+    if (piece != targetPosition) continue;
+    // If this is the second time i see this position, exit the function
+    if (seen) return true;
+    // Save that I have seen it once
+    seen = true;
+  }
+
+  // I have not seen the position twice
+  return false;
 }
 
-std::vector<MovementsSequence> movementsSequences(const Player& currentPlayer,
-                                                  const DicePairRoll& dices) {
+static bool canTakeOutPieces(const Player& currentPlayer) {
+  // Check I have pieces to take out from home
+  auto homePieces = currentPlayer.indicesForHomePieces();
+  bool hasPiecesAtHome = !homePieces.empty();
+
+  // Check on the inital position the is space for one more piece
+  // Only need to check I have not two pieces of mine on the initial position
+  Position initialPosition =
+      getPlayerInitialPosition(currentPlayer.playerNumber);
+  bool isSpaceInInitialPosition =
+      !hasTwoPiecesInPosition(currentPlayer, initialPosition);
+
+  return hasPiecesAtHome && isSpaceInInitialPosition;
+}
+
+static std::vector<MovementsSequence> movementsSequences(
+    const Player& currentPlayer, const DicePairRoll& dices) {
   // If we can take out a piece we must move the 5 first of all
   if (canTakeOutPieces(currentPlayer)) {
     if (dices.first + dices.second == OUT_OF_HOME)
@@ -177,6 +213,18 @@ Player* Game::eatenPlayer(const Player& eater, Position destPosition) {
   return nullptr;
 }
 
+Position Game::movePiece(PlayerNumber playerNumber, Position piece,
+                         unsigned int advance) {
+  Player& playerToMove = getPlayer(playerNumber);
+  return movePiece(playerToMove, piece, advance);
+};
+
+Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
+  Position destPosition = player.movePiece(piece, advance, barriers);
+  barriers = loadBarriers(players);
+  return destPosition;
+};
+
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     const Player& currentPlayer, const MovementsSequence& advances) const {
   // Returns all the states I can access with this sequence of movements
@@ -196,14 +244,15 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     }
   }
 
-  for (auto piece : piecesToMove) {
+  for (Position piece : piecesToMove) {
     // Create a new game to not modify the current one
     Game newGame = *this;
     // Make the current player to move the current amount
     Player& playerToMove = newGame.getPlayer(currentPlayer.playerNumber);
     Move move{currentPlayer.playerNumber, piece};
     try {
-      move.dest = playerToMove.movePiece(piece, advance);
+      // Move the piece calling the Game object to get the barriers updated
+      move.dest = newGame.movePiece(playerToMove, piece, advance);
     } catch (Player::WrongMove e) {
       // The current piece cannot be moved as much as wanted,
       // so no new state can be created
@@ -230,22 +279,22 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
 
     // The movement can be performed on the current piece
     // Ask for all the movements that I can do now
-    std::vector<Game::Turn> nextStates = ulteriorMovements(
+    std::vector<Turn> nextStates = ulteriorMovements(
         playerToMove, advances, newGame, gotToGoal, haveEaten);
 
     if (!nextStates.empty()) {
-      for (auto nextState : nextStates) {
-        const auto& nextMovements = nextState.movements;
-        Game::Turn turn{nextState.finalSate, decisionMovements};
+      for (const Turn& nextState : nextStates) {
+        const Play& nextMovements = nextState.movements;
+        Turn turn{nextState.finalSate, decisionMovements};
         turn.movements.insert(turn.movements.end(),
                               std::make_move_iterator(nextMovements.begin()),
                               std::make_move_iterator(nextMovements.end()));
         states.push_back(turn);
       }
     } else {
-      // There are no more pieces to move, so I add to the vector the current
-      // movement
-      Game::Turn turn{newGame.players, decisionMovements};
+      // There are no more pieces to move,
+      // so I add to the vector the current movement
+      Turn turn{newGame.players, decisionMovements};
       states.push_back(turn);
     }
   }
@@ -257,9 +306,9 @@ std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices) const {
   // From de dices get the sequences of movements
   auto possibleMovements = movementsSequences(currentPlayer, dices);
-  std::vector<Game::Turn> states;
+  std::vector<Turn> states;
   for (const auto& sequence : possibleMovements) {
-    std::vector<Game::Turn> statesForSequence =
+    std::vector<Turn> statesForSequence =
         allPossibleStatesFromSequence(currentPlayer, sequence);
     states.insert(states.end(), statesForSequence.begin(),
                   statesForSequence.end());
@@ -268,7 +317,7 @@ std::vector<Game::Turn> Game::allPossibleStates(
 }
 
 double Game::nonRecursiveEvaluateState(const Player& currentPlayer) const {
-  double value = 0;
+  double value{0.0};
   for (const Player& player : players) {
     double playerValue = player.punctuation();
     if (player.playerNumber == currentPlayer.playerNumber) playerValue *= -1;
@@ -291,8 +340,8 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
 
   ScoredPlay bestPlay = {{}, INFINITY};
   // Get all the possible states I can get with this dice roll
-  std::vector<Game::Turn> turns{allPossibleStates(player, dices)};
-  for (auto turn : turns) {
+  std::vector<Turn> turns{allPossibleStates(player, dices)};
+  for (const Turn& turn : turns) {
     // Get the final state of the player that has made a movement
     const Player& finalPlayerSate =
         ::getPlayer(turn.finalSate, player.playerNumber);
@@ -319,7 +368,7 @@ Game Game::stateAfterMovement(const Player& player, Position ori,
   Players copiedPlayers = players;
   Player& playerToMove = copiedPlayers[player.playerNumber - 1];
   try {
-    playerToMove.movePiece(ori, positionsToMove);
+    playerToMove.movePiece(ori, positionsToMove, barriers);
   } catch (const Player::WrongMove& moveException) {
     std::ostringstream oss;
     oss << "Piece at position " << ori << " cannot be moved with a "

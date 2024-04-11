@@ -53,6 +53,11 @@ class Game {
   // I would eat on the given position
   Player* eatenPlayer(const Player& eater, Position destPosition);
 
+  Position movePiece(PlayerNumber playerNumber, Position piece,
+                     unsigned int advance);
+  Position movePiece(Player& player, Position piece,
+                     unsigned int advance);
+
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);
 

@@ -2,7 +2,8 @@
 
 #include <algorithm>  // for find
 #include <array>      // for array<>::iterator, array
-#include <sstream>    // for operator<<, ostringstream, basic_ostream, basic...
+#include <set>
+#include <sstream>  // for operator<<, ostringstream, basic_ostream, basic...
 
 #include "dices.hpp"  // for getDiceValProbability, averageDiceRoll
 #include "table.hpp"  // for Position, getPlayerInitialPosition, getPlayerLa...
@@ -102,17 +103,66 @@ static Position destinyPosition(Position pieceToMove,
   return pieceToMove;
 }
 
-Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
+static bool existBarriersBetweenPositions(Position origin, Position destiny,
+                                          const std::set<Position>& barriers) {
+  // Tests the range (origin, destiny]
+  return barriers.upper_bound(origin) != barriers.upper_bound(destiny);
+}
+
+static bool existBlockingBarriers(Position origin, Position destiny,
+                                  const std::set<Position>& barriers) {
+  // If there are not barriers at all, exit the function
+  if (barriers.empty()) return false;
+
+  // I expect the destiny position to be right
+  // Just have to check there are no barriers on the initial position
+  if (origin == HOME) {
+    // The only barrier that can affect me is the one on the destiny
+    return barriers.find(destiny) != barriers.end();
+  }
+
+  // There are not barriers in the hallway
+  if (isHallwayPosition(origin)) return false;
+
+  // Origin is regular position, I have to check there are no barriers ahead
+
+  // Case where I have not cross the position number 1
+  if (origin < destiny) {
+    return existBarriersBetweenPositions(origin, destiny, barriers);
+  } else {
+    // Check two segments and also the position number 1
+    return existBarriersBetweenPositions(origin, totalPositions, barriers) ||
+           barriers.find(1) != barriers.end() ||
+           existBarriersBetweenPositions(1, destiny, barriers);
+  }
+}
+
+Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove,
+                           const std::set<Position>& barriers) {
   // Check I have the pice I was asked to move
   auto itPieceToMove = std::find(pieces.begin(), pieces.end(), pieceToMove);
   if (itPieceToMove == pieces.end())
     throw PieceNotFound("No piece to be moved");
   Position& toMove = *itPieceToMove;
 
-  toMove = destinyPosition(toMove, positionsToMove, playerNumber);
+  Position destiny = destinyPosition(toMove, positionsToMove, playerNumber);
 
+  // Check the movement can be performed
+  if (existBlockingBarriers(toMove, destiny, barriers)) {
+    std::ostringstream oss;
+    oss << "There are barriers that don't allow to move " << toMove << " to "
+        << destiny << ".";
+    throw Player::WrongMove(oss.str());
+  }
+
+  // Execute the movement
+  toMove = destiny;
   // Return the final position of the piece
   return toMove;
+}
+
+Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove) {
+  return movePiece(pieceToMove, positionsToMove, {});
 }
 
 void Player::pieceEaten(Position eatenPiece) {

@@ -155,7 +155,7 @@ static bool canTakeOutPieces(const Player& currentPlayer) {
   Position initialPosition =
       getPlayerInitialPosition(currentPlayer.playerNumber);
   bool isSpaceInInitialPosition =
-      !currentPlayer.hasTwoPiecesInPosition(initialPosition);
+      currentPlayer.countPiecesInPosition(initialPosition) < 2;
 
   return isSpaceInInitialPosition;
 }
@@ -258,6 +258,22 @@ Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
   return destPosition;
 };
 
+void Game::takePiece(PlayerNumber playerNumber, Position piece, Position dest) {
+  Player& playerToMove = getPlayer(playerNumber);
+  takePiece(playerToMove, piece, dest);
+};
+
+void Game::takePiece(Player& player, Position piece, Position dest) {
+  auto itPiece = std::find(player.pieces.begin(), player.pieces.end(), piece);
+  if (itPiece == player.pieces.end()) {
+    throw Player::PieceNotFound("No piece to be moved");
+  }
+
+  Position& pieceToMove = *itPiece;
+  pieceToMove = dest;
+  barriers = loadBarriers(players);
+};
+
 void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
   Player& playerToMove = getPlayer(playerNumber);
   pieceEaten(playerToMove, eatenPiece);
@@ -267,6 +283,48 @@ void Game::pieceEaten(Player& player, Position eatenPiece) {
   player.pieceEaten(eatenPiece);
   barriers = loadBarriers(players);
 };
+
+static bool doubleDices(const MovementsSequence& advances) {
+  return advances.size() == 2 && advances.front() == advances.back();
+}
+
+static std::set<Position> piecesOnBarrier(const Player& currentPlayer,
+                                          const std::set<Position>& barriers) {
+  std::set<Position> uniquePiecesOnBarrier;
+  for (Position piece : currentPlayer.pieces) {
+    bool isPieceOnABarrier = barriers.find(piece) != barriers.end();
+    if (isPieceOnABarrier) {
+      uniquePiecesOnBarrier.insert(piece);
+    }
+  }
+
+  return uniquePiecesOnBarrier;
+}
+
+static bool pieceCanBeMoved(Position piece, PlayerNumber playerNumber,
+                            unsigned int advance, Game currentGame) {
+  Player& playerToMove = currentGame.getPlayer(playerNumber);
+  try {
+    // Try to move the piece calling the Player object because its function is a
+    // bit lighter
+    playerToMove.movePiece(piece, advance);
+  } catch (Player::WrongMove e) {
+    // The current piece cannot be moved as much as wanted
+    return false;
+  }
+
+  // The piece was moved successfully
+  return true;
+}
+
+static void filterPiecesThatCanBeMoved(std::set<Position>& pieces,
+                                       PlayerNumber playerNumber,
+                                       unsigned int advance,
+                                       const Game& currentGame) {
+  std::erase_if(pieces, [&](Position piece) {
+    return !pieceCanBeMoved(piece, playerNumber, advance, currentGame);
+  });
+}
 
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     const Player& currentPlayer, const MovementsSequence& advances) const {
@@ -278,13 +336,25 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
   // Take the advance I will try to perform
   unsigned int advance = advances.front();
 
-  std::array<Position, 4> piecesToMove{currentPlayer.pieces};
+  std::set<Position> piecesToMove;
+
   // If the advance is 5 and I have pieces to take out from home, I cannot move
   // any other piece
-  if (advance == OUT_OF_HOME) {
-    if (canTakeOutPieces(currentPlayer)) {
-      piecesToMove = {HOME, HOME, HOME, HOME};
-    }
+  if (advance == OUT_OF_HOME && canTakeOutPieces(currentPlayer)) {
+    piecesToMove = {HOME};
+  }
+  // Check if I got doubles dices
+  else if (doubleDices(advances)) {
+    piecesToMove = piecesOnBarrier(currentPlayer, barriers);
+    filterPiecesThatCanBeMoved(piecesToMove, currentPlayer.playerNumber,
+                               advances.front(), *this);
+  }
+
+  // If I have not mandatory pieces to move, all the pieces are candidates to be
+  // moved
+  if (piecesToMove.empty()) {
+    const auto& playerPieces = currentPlayer.pieces;
+    piecesToMove.insert(playerPieces.begin(), playerPieces.end());
   }
 
   for (Position piece : piecesToMove) {

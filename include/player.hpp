@@ -20,7 +20,7 @@ class Player {
   Position movePiece(Position pieceToMove, unsigned int positionsToMove,
                      const std::set<Position>& barriers);
 
-  bool hasTwoPiecesInPosition(Position targetPosition) const;
+  unsigned int countPiecesInPosition(Position targetPosition) const;
   bool canGoToInitialPosition() const;
 
   // Moves the piece to home position

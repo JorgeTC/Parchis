@@ -56,8 +56,11 @@ class Game {
   // Move the piece and update the barrier set
   Position movePiece(PlayerNumber playerNumber, Position piece,
                      unsigned int advance);
-  Position movePiece(Player& player, Position piece,
-                     unsigned int advance);
+  Position movePiece(Player& player, Position piece, unsigned int advance);
+
+  // Take piece to position and update the barrier set
+  void takePiece(PlayerNumber playerNumber, Position piece, Position dest);
+  void takePiece(Player& player, Position piece, Position dest);
 
   // Move the piece to home and update the barrier set
   void pieceEaten(PlayerNumber playerNumber, Position eatenPiece);

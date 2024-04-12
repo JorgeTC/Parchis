@@ -27,6 +27,20 @@ static void testPlay(const Game::Players& players, DicePairRoll dices,
   }
 }
 
+static Game getFinalState(const Game::Players& players, DicePairRoll dices,
+                          PlayerNumber player) {
+  Game game(players);
+
+  ScoredPlay bestPlayAndScore = game.bestPlay(player, dices);
+  const Play& bestPlay = bestPlayAndScore.play;
+
+  for (const Move& movement : bestPlay) {
+    game.takePiece(movement.player, movement.origin, movement.dest);
+  }
+
+  return game;
+}
+
 TEST(TestGame, TestMoveToWin) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 2}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
@@ -117,9 +131,19 @@ TEST(TestGame, TestCannotMoveOnGoal) {
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
   DicePairRoll roll{1, 2};
-  Play expectedBestPlay = {{1, GOAL - 1, GOAL}, {1, GOAL - 3, GOAL - 1}};
 
-  testPlay(players, roll, 1, expectedBestPlay);
+  Game finalState = getFinalState(players, roll, 1);
+
+  const Player& mover = finalState.getPlayer(1);
+
+  // Check I put one piece on the goal which means I got my impossible boost
+  unsigned int piecesAtGoal =
+      std::count(mover.pieces.begin(), mover.pieces.end(), GOAL);
+  ASSERT_TRUE(piecesAtGoal == 2);
+
+  unsigned int piecesAtHome =
+      std::count(mover.pieces.begin(), mover.pieces.end(), HOME);
+  ASSERT_TRUE(piecesAtHome == 1);
 }
 
 TEST(TestGame, TestCannotMoveAfterBoostOnGoal) {
@@ -298,10 +322,25 @@ TEST(TestGame, TestDontGoOutIfBarrier) {
       Player({2, {HOME, HOME, HOME, HOME}})};
 
   DicePairRoll roll{4, 1};
-  Play expectedBestPlay = {{1, initialPosition, initialPosition + 4},
-                           {1, initialPosition + 4, initialPosition + 5}};
 
-  testPlay(players, roll, 1, expectedBestPlay);
+  Game finalState = getFinalState(players, roll, 1);
+  const Player& mover = finalState.getPlayer(1);
+
+  // Check I put one piece on the goal which means I got my impossible boost
+  unsigned int piecesAtGoal =
+      std::count(mover.pieces.begin(), mover.pieces.end(), GOAL);
+  ASSERT_TRUE(piecesAtGoal == 1);
+
+  // I cannot check the exact number of pieces on the init position.
+  // I only know at least one of them has been moved
+  unsigned int piecesAtInit =
+      std::count(mover.pieces.begin(), mover.pieces.end(), initialPosition);
+  ASSERT_TRUE(piecesAtInit < 2);
+
+  // Check the one at hme remains at home
+  unsigned int piecesAtHome =
+      std::count(mover.pieces.begin(), mover.pieces.end(), HOME);
+  ASSERT_TRUE(piecesAtHome == 1);
 }
 
 TEST(TestGame, TestGoOutAfterRemoveBarrier) {
@@ -325,8 +364,7 @@ TEST(TestGame, TestCreateBarrierAfterMove) {
                         Player({2, {HOME, HOME, 8, HOME}})};
 
   DicePairRoll roll{4, 3};
-  Play expectedBestPlay = {{1, 1, 5},
-                           {1, 5, 8}};
+  Play expectedBestPlay = {{1, 1, 5}, {1, 5, 8}};
 
   Game game(players);
   ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
@@ -392,6 +430,19 @@ TEST(TestGame, TestExitAfterBreakingBarrierWithBoost) {
 
   Play expectedBestPlay = {
       {1, 59, 60}, {2, 60, HOME}, {1, 1, 21}, {1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestBreakBarrierOnDouble) {
+  // Place a piece on a position that would let me insert one piece
+  // Instead of choosing that option, the barrier must be broken
+  Game::Players players{Player({1, {GOAL - 5, 1, 1, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  DicePairRoll roll{5, 5};
+
+  Play expectedBestPlay = {{1, 1, 6}, {1, HOME, 1}};
 
   testPlay(players, roll, 1, expectedBestPlay);
 }

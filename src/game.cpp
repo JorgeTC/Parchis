@@ -345,9 +345,22 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
   }
   // Check if I got doubles dices
   else if (doubleDices(advances)) {
-    piecesToMove = piecesOnBarrier(currentPlayer, barriers);
+    // Ask all the pieces that are on a barrier
+    std::set<Position> barrierPieces = piecesOnBarrier(currentPlayer, barriers);
+    // all of them are candidates to be moved.
+    piecesToMove = barrierPieces;
+    // Remove the barriers that cannot be broken
     filterPiecesThatCanBeMoved(piecesToMove, currentPlayer.playerNumber,
-                               advances.front(), *this);
+                               advance, *this);
+
+    // There is no barrier that can be broken,
+    // fill piecesToMove with the pieces that are not in barriers
+    if (piecesToMove.empty()) {
+      for (Position piece : currentPlayer.pieces) {
+        if (barrierPieces.find(piece) != barrierPieces.end())
+          piecesToMove.insert(piece);
+      }
+    }
   }
 
   // If I have not mandatory pieces to move, all the pieces are candidates to be

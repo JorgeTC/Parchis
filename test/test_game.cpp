@@ -442,3 +442,29 @@ TEST(TestGame, TestBreakBarrierOnDouble) {
 
   testPlay(players, roll, 1, expectedBestPlay);
 }
+
+TEST(TestGame, TestBreakTheOnlyPossibleBarrier) {
+
+  // Player 1 has two barriers: in position 42 and in position 7.
+  // There is another barrier on 47 so barrier on 42 cannot be broken with a 6.
+  // The barrier on 7 must be broken.
+  // The other dice must be used by piece on 5 and cannot
+  // be used by the other position on 7 to not form another barrier.
+  Game::Players players{Player({1, {42, 7, 5, 7}}),
+                        Player({2, {42, 47, 47, GOAL}})};
+
+  DicePairRoll roll{6, 6};
+
+  Play expectedBestPlay = {{1, 7, 13}, {1, 5, 11}};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+
+  // Check there is only one possibility
+  ASSERT_EQ(states.size(), 1);
+
+  const Play& bestPlay = states.front().movements;
+
+  comparePlays(bestPlay, expectedBestPlay);
+}

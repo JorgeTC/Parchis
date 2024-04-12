@@ -9,13 +9,7 @@
 #include "player.hpp"  // for Player
 #include "table.hpp"   // for GOAL, HOME, getPlayerInitialPosition, Position
 
-static void testPlay(const Game::Players& players, DicePairRoll dices,
-                     PlayerNumber player, const Play& expectedBestPlay) {
-  Game game(players);
-
-  ScoredPlay bestPlayAndScore = game.bestPlay(player, dices);
-  const Play& bestPlay = bestPlayAndScore.play;
-
+static void comparePlays(const Play& bestPlay, const Play& expectedBestPlay) {
   ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
   for (unsigned int i = 0; i < bestPlay.size(); i++) {
     const Move& bestMove = bestPlay[i];
@@ -25,6 +19,16 @@ static void testPlay(const Game::Players& players, DicePairRoll dices,
     ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
     ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
   }
+}
+
+static void testPlay(const Game::Players& players, DicePairRoll dices,
+                     PlayerNumber player, const Play& expectedBestPlay) {
+  Game game(players);
+
+  ScoredPlay bestPlayAndScore = game.bestPlay(player, dices);
+  const Play& bestPlay = bestPlayAndScore.play;
+
+  comparePlays(bestPlay, expectedBestPlay);
 }
 
 static Game getFinalState(const Game::Players& players, DicePairRoll dices,
@@ -370,15 +374,7 @@ TEST(TestGame, TestCreateBarrierAfterMove) {
   ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
   const Play& bestPlay = bestPlayAndScore.play;
 
-  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
-  for (unsigned int i = 0; i < bestPlay.size(); i++) {
-    const Move& bestMove = bestPlay[i];
-    const Move& expectedBestMove = expectedBestPlay[i];
-
-    ASSERT_EQ(bestMove.player, expectedBestMove.player);
-    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
-    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
-  }
+  comparePlays(bestPlay, expectedBestPlay);
 
   for (const Move& move : bestPlay) {
     unsigned int advance = move.dest - move.origin;

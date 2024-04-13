@@ -135,6 +135,33 @@ TEST(TestGame, MoveOnGoal) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
+TEST(TestGame, CannotMoveOnHOME) {
+  // Player without playable pieces
+  Game::Players players{Player({1, {GOAL, GOAL, HOME, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  DicePairRoll roll{4, 2};
+
+  // No moves can be done
+  Play expectedBestPlay = {};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, CannotMoveOnHallway) {
+  // Player with playable pieces
+  Game::Players players{Player({1, {GOAL, GOAL - 2, GOAL - 1, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  // Numbers too big to move the available pieces
+  DicePairRoll roll{4, 3};
+
+  // No moves can be done
+  Play expectedBestPlay = {};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
 TEST(TestGame, CannotMoveOnGoal) {
   // Once I get to goal I will win 10 advances,
   // but I have no pieces that can use them
@@ -389,6 +416,17 @@ TEST(TestGame, CreateBarrierAfterMove) {
   ASSERT_TRUE(game.barriers == std::set<Position>{8});
 }
 
+TEST(TestGame, CannotMoveBecauseBarrier) {
+  // Two playable pieces that cannot be moved because of a barrier
+  Game::Players players{Player({1, {GOAL, 2, 1, HOME}}),
+                        Player({2, {HOME, 3, 3, HOME}})};
+
+  DicePairRoll roll{4, 6};
+  Play expectedBestPlay = {};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
 TEST(TestGame, EatOnExit) {
   Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
                         Player({2, {HOME, HOME, 1, HOME}})};
@@ -470,7 +508,7 @@ TEST(TestGame, BreakTheOnlyPossibleBarrier) {
   ASSERT_EQ(states.size(), expectedBestPlays.size());
 
   for (unsigned int i = 0; i < states.size(); i++) {
-    comparePlays(states[0].movements, expectedBestPlays[0]);
+    comparePlays(states[i].movements, expectedBestPlays[i]);
   }
 }
 
@@ -502,4 +540,24 @@ TEST(TestGame, MustMoveBarrier) {
   Play expectedBestPlay = {{1, 1, 2}, {1, 1, 2}};
 
   testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, BreakBarrierAndCreateNew) {
+  Game::Players players{Player({1, {5, 5, 6, GOAL}}),
+                        Player({2, {8, 9, 9, GOAL}})};
+
+  DicePairRoll roll{3, 3};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+
+  // Move the piece on 5 to break a barrier
+  // This will create a barrier on position 8
+  // The other piece on 5 cannot be moved and the piece on 8 cannot be moved
+  // because the enemy has a barrier on 9
+  std::vector<Play> expectedPlays = {{{1, 5, 8}}};
+
+  ASSERT_EQ(states.size(), expectedPlays.size());
+  comparePlays(states.front().movements, expectedPlays.front());
 }

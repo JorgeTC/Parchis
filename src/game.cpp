@@ -470,13 +470,13 @@ static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
 }
 
 std::vector<Game::Turn> Game::tripleDouble(PlayerNumber playerNumber) const {
-  Position lastTouched = *getLastTouched(playerNumber);
+  Position lastTouchedPosition = *getLastTouched(playerNumber);
 
   // If the last touched piece can go back to HOME
-  if (isCommonPosition(lastTouched)) {
+  if (isCommonPosition(lastTouchedPosition)) {
     Game newGame = *this;
-    newGame.pieceEaten(playerNumber, lastTouched);
-    Move goHomeMove{playerNumber, lastTouched, HOME};
+    newGame.pieceEaten(playerNumber, lastTouchedPosition);
+    Move goHomeMove{playerNumber, lastTouchedPosition, HOME};
     return {{newGame.players, Play({goHomeMove})}};
   } else {
     // If the piece cannot go back home I cannot make movement anyway

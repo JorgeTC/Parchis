@@ -9,15 +9,19 @@
 #include "player.hpp"  // for Player
 #include "table.hpp"   // for GOAL, HOME, getPlayerInitialPosition, Position
 
+static void compareMove(const Move& bestMove, const Move& expectedBestMove) {
+  ASSERT_EQ(bestMove.player, expectedBestMove.player);
+  ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+  ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+}
+
 static void comparePlays(const Play& bestPlay, const Play& expectedBestPlay) {
   ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
   for (unsigned int i = 0; i < bestPlay.size(); i++) {
     const Move& bestMove = bestPlay[i];
     const Move& expectedBestMove = expectedBestPlay[i];
 
-    ASSERT_EQ(bestMove.player, expectedBestMove.player);
-    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
-    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+    compareMove(bestMove, expectedBestMove);
   }
 }
 
@@ -444,27 +448,57 @@ TEST(TestGame, TestBreakBarrierOnDouble) {
 }
 
 TEST(TestGame, TestBreakTheOnlyPossibleBarrier) {
-
   // Player 1 has two barriers: in position 42 and in position 7.
   // There is another barrier on 47 so barrier on 42 cannot be broken with a 6.
   // The barrier on 7 must be broken.
-  // The other dice must be used by piece on 5 and cannot
+  // The other dice must be used by piece on 5 or on 13 and cannot
   // be used by the other position on 7 to not form another barrier.
   Game::Players players{Player({1, {42, 7, 5, 7}}),
                         Player({2, {42, 47, 47, GOAL}})};
 
   DicePairRoll roll{6, 6};
 
-  Play expectedBestPlay = {{1, 7, 13}, {1, 5, 11}};
+  std::vector<Play> expectedBestPlays = {{{1, 7, 13}, {1, 5, 11}},
+                                         {{1, 7, 13}, {1, 13, 19}}};
 
   Game game(players);
   auto mover = game.getPlayer(1);
   std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
 
-  // Check there is only one possibility
-  ASSERT_EQ(states.size(), 1);
+  // Check there are two possibilities
+  ASSERT_EQ(states.size(), expectedBestPlays.size());
 
-  const Play& bestPlay = states.front().movements;
+  for (unsigned int i = 0; i < states.size(); i++) {
+    comparePlays(states[0].movements, expectedBestPlays[0]);
+  }
+}
 
-  comparePlays(bestPlay, expectedBestPlay);
+TEST(TestGame, TestBreakSecondBarrierWithBoost) {
+  Game::Players players{Player({1, {2, 2, 46, 46}}),
+                        Player({2, {3, GOAL, 13, 13}})};
+
+  DicePairRoll roll{1, 1};
+
+  Play expectedFirstMoves = {{1, 2, 3}, {2, 3, HOME}, {1, 46, GOAL - 6}};
+
+  Game game(players);
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+
+  ASSERT_LT(expectedFirstMoves.size(), bestPlay.size());
+
+  for (unsigned int i = 0; i < expectedFirstMoves.size(); i++) {
+    compareMove(expectedFirstMoves[i], bestPlay[i]);
+  }
+}
+
+TEST(TestGame, TestMustMoveBarrier) {
+  Game::Players players{Player({1, {1, 1, GOAL, GOAL}}),
+                        Player({2, {3, 3, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 1};
+
+  Play expectedBestPlay = {{1, 1, 2}, {1, 1, 2}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
 }

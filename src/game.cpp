@@ -428,6 +428,36 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
   return states;
 }
 
+bool operator==(const Move& m1, const Move& m2) {
+  return m1.player == m2.player && m1.origin == m2.origin && m1.dest == m2.dest;
+}
+
+static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
+  // If I got a double dice I must break a barrier.
+  // This means that if I moved one element of the barrier,
+  // the other one cannot move to make another barrier just after the recent
+  // broken one.
+
+  const std::set<Position>& barriers = currentGame.barriers;
+  // Check the first piece I moved is in a barrier
+  const Play& movements = turn.movements;
+  const Move& firstMove = movements.front();
+  Position firstMovedPiece = firstMove.origin;
+  Position destFirstMovedPiece = firstMove.dest;
+  bool brokeBarrier{barriers.find(firstMovedPiece) != barriers.end()};
+  if (!brokeBarrier) return false;
+
+  for (auto itMovement = std::next(movements.begin());
+       itMovement != movements.end(); itMovement++) {
+    const Move& movement = *itMovement;
+    if (movement == firstMove) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices) const {
   // From de dices get the sequences of movements
@@ -439,6 +469,21 @@ std::vector<Game::Turn> Game::allPossibleStates(
     states.insert(states.end(), statesForSequence.begin(),
                   statesForSequence.end());
   }
+
+  // If I got double dices, reject the combinations
+  // of movements that have moved a barrier.
+  // Barriers must be broken, not moved
+  if (dices.first == dices.second) {
+    std::vector<Turn> filteredStates = states;
+    auto filter = std::remove_if(
+        filteredStates.begin(), filteredStates.end(),
+        [&](const Turn& turn) { return hasMovedABarrier(*this, turn); });
+    filteredStates.erase(filter, filteredStates.end());
+
+    // If there are no movements to be done, allow moving the barrier
+    if (!filteredStates.empty()) states = filteredStates;
+  }
+
   return states;
 }
 

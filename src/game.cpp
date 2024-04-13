@@ -48,6 +48,11 @@ Game::Game() : players(loadPlayers()), barriers(loadBarriers(players)) {}
 Game::Game(const Players& players)
     : players(players), barriers(loadBarriers(players)){};
 
+Game::Game(const Turn::FinalState& state)
+    : players(state.players),
+      lastTouched(state.lastTouched),
+      barriers(loadBarriers(players)){};
+
 Player& getPlayer(Game::Players& players, PlayerNumber player) {
   switch (player) {
     case 1:
@@ -423,7 +428,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     if (!nextStates.empty()) {
       for (const Turn& nextState : nextStates) {
         const Play& nextMovements = nextState.movements;
-        Turn turn{nextState.finalSate, decisionMovements};
+        Turn turn{nextState.finalState, decisionMovements};
         turn.movements.insert(turn.movements.end(),
                               std::make_move_iterator(nextMovements.begin()),
                               std::make_move_iterator(nextMovements.end()));
@@ -432,7 +437,7 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     } else {
       // There are no more pieces to move,
       // so I add to the vector the current movement
-      Turn turn{newGame.players, decisionMovements};
+      Turn turn{{newGame.players, newGame.lastTouched}, decisionMovements};
       states.push_back(turn);
     }
   }
@@ -477,11 +482,11 @@ std::vector<Game::Turn> Game::tripleDouble(PlayerNumber playerNumber) const {
     Game newGame = *this;
     newGame.pieceEaten(playerNumber, lastTouchedPosition);
     Move goHomeMove{playerNumber, lastTouchedPosition, HOME};
-    return {{newGame.players, Play({goHomeMove})}};
+    return {{newGame.getState(), Play({goHomeMove})}};
   } else {
     // If the piece cannot go back home I cannot make movement anyway
     // So leave the table as it is and go to the next player
-    return {{players, Play({})}};
+    return {{getState(), Play({})}};
   }
 };
 
@@ -549,7 +554,7 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
   for (const Turn& turn : turns) {
     // Get the final state of the player that has made a movement
     const Player& finalPlayerSate =
-        ::getPlayer(turn.finalSate, player.playerNumber);
+        ::getPlayer(turn.finalState.players, player.playerNumber);
 
     // If I find a turn for which I win, stop searching
     if (finalPlayerSate.hasWon()) {
@@ -557,7 +562,7 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
     }
 
     // Evaluate the current state with the needed depth
-    double evaluation = Game(turn.finalSate).evaluateState(finalPlayerSate, 0);
+    double evaluation = Game(turn.finalState).evaluateState(finalPlayerSate, 0);
     // If the state is better that the best found till now, update the movements
     if (evaluation < bestPlay.score) {
       bestPlay = {turn.movements, evaluation};

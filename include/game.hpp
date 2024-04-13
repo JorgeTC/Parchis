@@ -35,12 +35,19 @@ class Game {
 
   // The movements a player does to get to a particular table state
   struct Turn {
-    Players finalSate;
+    struct FinalState {
+      // Final state of the game
+      Players players;
+      LastTouched lastTouched;
+    } finalState;
+
+    // Movements to get that state
     Play movements;
   };
 
   Game();
   Game(const Players&);
+  Game(const Turn::FinalState&);
 
   std::vector<Turn> allPossibleStates(const Player&, const DicePairRoll&,
                                       unsigned int rollsInARow = 1) const;
@@ -84,6 +91,8 @@ class Game {
 
   Game stateAfterMovement(const Player& player, Position ori,
                           unsigned int positionsToMove) const;
+
+  Turn::FinalState getState() const { return {players, lastTouched}; };
 
   struct ImpossibleMovement : public std::invalid_argument {
     using std::invalid_argument::invalid_argument;

@@ -615,7 +615,11 @@ TEST(TestGame, GoBackHomeOnThirdDoubleSafePosition) {
   std::vector<Play> expectedPlays = {{{1, 7, HOME}}};
 
   ASSERT_EQ(states.size(), expectedPlays.size());
-  comparePlays(states.front().movements, expectedPlays.front());
+  const Game::Turn& state = states.front();
+  comparePlays(state.movements, expectedPlays.front());
+
+  Position player1LastTouched = HOME;
+  ASSERT_EQ(state.finalState.lastTouched[0], player1LastTouched);
 }
 
 TEST(TestGame, LastTouchedRecord) {
@@ -627,4 +631,19 @@ TEST(TestGame, LastTouchedRecord) {
   game.movePiece(1, 7, 6);
   Position lastTouched = game.getLastTouched(1);
   ASSERT_EQ(lastTouched, 13);
+}
+
+TEST(TestGame, LastTouchedInTurn) {
+  // Place pieces of 1 in positions that cannot go back home
+  Game::Players players{Player({1, {HOME, 7, HOME, GOAL}}),
+                        Player({2, {HOME, HOME, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 2};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  for (const Game::Turn& state : states)
+    ASSERT_EQ(state.finalState.lastTouched[0], 10);
 }

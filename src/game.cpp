@@ -449,13 +449,12 @@ bool operator==(const Move& m1, const Move& m2) {
   return m1.player == m2.player && m1.origin == m2.origin && m1.dest == m2.dest;
 }
 
-static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
+static bool hasMovedABarrier(const std::set<Position>& barriers, const Game::Turn& turn) {
   // If I got a double dice I must break a barrier.
   // This means that if I moved one element of the barrier,
   // the other one cannot move to make another barrier just after the recent
   // broken one.
 
-  const std::set<Position>& barriers = currentGame.barriers;
   // Check the first piece I moved is in a barrier
   const Play& movements = turn.movements;
   const Move& firstMove = movements.front();
@@ -513,12 +512,14 @@ std::vector<Game::Turn> Game::allPossibleStates(
   // of movements that have moved a barrier.
   // Barriers must be broken, not moved
   if (dices.first == dices.second) {
-    std::vector<Turn> filteredStates = states;
-    auto filter = std::remove_if(
-        filteredStates.begin(), filteredStates.end(),
-        [&](const Turn& turn) { return hasMovedABarrier(*this, turn); });
-    filteredStates.erase(filter, filteredStates.end());
+    std::vector<Turn> filteredStates;
+    filteredStates.reserve(states.size());
 
+    for (const Turn& turn : states) {
+      if (!hasMovedABarrier(barriers, turn)) {
+        filteredStates.push_back(turn);
+      }
+    }
     // If there are no movements to be done, allow moving the barrier
     if (!filteredStates.empty()) states = filteredStates;
   }

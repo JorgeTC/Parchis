@@ -561,3 +561,89 @@ TEST(TestGame, BreakBarrierAndCreateNew) {
   ASSERT_EQ(states.size(), expectedPlays.size());
   comparePlays(states.front().movements, expectedPlays.front());
 }
+
+TEST(TestGame, NoGoBackHomeOnThirdDouble) {
+  // Place pieces of 1 in positions that cannot go back home
+  Game::Players players{Player({1, {HOME, GOAL - 2, HOME, GOAL}}),
+                        Player({2, {8, 9, 9, GOAL}})};
+
+  // Create a double dice
+  DicePairRoll roll{3, 3};
+  // Third roll
+  unsigned int rollsInARow = 3;
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+  // Set last touched piece
+  game.setLastTouched(1, GOAL - 2);
+  std::vector<Game::Turn> states =
+      game.allPossibleStates(mover, roll, rollsInARow);
+
+  std::vector<Play> expectedPlays = {{}};
+
+  ASSERT_EQ(states.size(), expectedPlays.size());
+  comparePlays(states.front().movements, expectedPlays.front());
+}
+
+TEST(TestGame, ErrorOnWrongSetLastTouched) {
+  Game::Players players{Player({1, {HOME, GOAL - 2, 1, GOAL}}),
+                        Player({2, {HOME, HOME, HOME, GOAL}})};
+
+  Game game(players);
+
+  // Try to set a piece that does not exist
+  EXPECT_THROW(game.setLastTouched(1, 15), Player::PieceNotFound);
+}
+
+TEST(TestGame, GoBackHomeOnThirdDoubleSafePosition) {
+  // Place only one position that can go back home
+  Game::Players players{Player({1, {HOME, 7, HOME, GOAL}}),
+                        Player({2, {8, HOME, GOAL, GOAL}})};
+
+  // Create a double dice
+  DicePairRoll roll{3, 3};
+  // Third roll
+  unsigned int rollsInARow = 3;
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+  // Set last touched piece
+  game.setLastTouched(1, 7);
+  std::vector<Game::Turn> states =
+      game.allPossibleStates(mover, roll, rollsInARow);
+
+  std::vector<Play> expectedPlays = {{{1, 7, HOME}}};
+
+  ASSERT_EQ(states.size(), expectedPlays.size());
+  const Game::Turn& state = states.front();
+  comparePlays(state.movements, expectedPlays.front());
+
+  Position player1LastTouched = HOME;
+  ASSERT_EQ(state.finalState.lastTouched[0], player1LastTouched);
+}
+
+TEST(TestGame, LastTouchedRecord) {
+  // Place pieces of 1 in positions that cannot go back home
+  Game::Players players{Player({1, {HOME, 7, HOME, GOAL}}),
+                        Player({2, {HOME, HOME, GOAL, GOAL}})};
+
+  Game game(players);
+  game.movePiece(1, 7, 6);
+  Position lastTouched = game.getLastTouched(1);
+  ASSERT_EQ(lastTouched, 13);
+}
+
+TEST(TestGame, LastTouchedInTurn) {
+  // Place pieces of 1 in positions that cannot go back home
+  Game::Players players{Player({1, {HOME, 7, HOME, GOAL}}),
+                        Player({2, {HOME, HOME, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 2};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  for (const Game::Turn& state : states)
+    ASSERT_EQ(state.finalState.lastTouched[0], 10);
+}

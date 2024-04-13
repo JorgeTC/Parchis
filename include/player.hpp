@@ -10,6 +10,8 @@
 
 class Player {
  public:
+  using Pieces = std::array<Position, 4>;
+
   double punctuation() const;
 
   // Checks whether all the pieces are on the goal
@@ -36,5 +38,5 @@ class Player {
   std::vector<unsigned int> indicesForHomePieces() const;
 
   /* const*/ PlayerNumber playerNumber{0};
-  std::array<Position, 4> pieces = {HOME, HOME, HOME, HOME};
+  Pieces pieces = {HOME, HOME, HOME, HOME};
 };

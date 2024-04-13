@@ -56,14 +56,14 @@ TEST(TestPlayer, MoveToWin) {
     Player player{1, {HOME, HOME, HOME, 62}};
     player.movePiece(62, 10);
 
-    std::array<Position, 4> expectedPositions({HOME, HOME, HOME, GOAL});
+    Player::Pieces expectedPositions({HOME, HOME, HOME, GOAL});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
   {
     Player player{2, {HOME, HOME, HOME, 28}};
     player.movePiece(28, 10);
 
-    std::array<Position, 4> expectedPositions({HOME, HOME, HOME, GOAL});
+    Player::Pieces expectedPositions({HOME, HOME, HOME, GOAL});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
 }
@@ -85,7 +85,7 @@ TEST(TestPlayer, MoveHome) {
     Player player{number, {HOME, HOME, HOME, HOME}};
     player.movePiece(HOME, 5);
     Position playerStart = getPlayerInitialPosition(number);
-    std::array<Position, 4> expectedPositions({playerStart, HOME, HOME, HOME});
+    Player::Pieces expectedPositions({playerStart, HOME, HOME, HOME});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
 }
@@ -118,7 +118,7 @@ TEST(TestPlayer, MoveFromHallway) {
   Player player{1, {firstHallway + 2, HOME, HOME, HOME}};
 
   player.movePiece(firstHallway + 2, 3);
-  std::array<Position, 4> expectedPositions(
+  Player::Pieces expectedPositions(
       {firstHallway + 5, HOME, HOME, HOME});
   ASSERT_EQ(player.pieces, expectedPositions);
 }
@@ -133,7 +133,7 @@ TEST(TestPlayer, WinFromHallway) {
   Player player{1, {finalHallway, HOME, HOME, HOME}};
 
   player.movePiece(finalHallway, 1);
-  std::array<Position, 4> expectedPositions({GOAL, HOME, HOME, HOME});
+  Player::Pieces expectedPositions({GOAL, HOME, HOME, HOME});
   ASSERT_EQ(player.pieces, expectedPositions);
 }
 
@@ -142,28 +142,28 @@ TEST(TestPlayer, FurtherThanOne) {
     Player player{2, {63, HOME, HOME, HOME}};
 
     player.movePiece(63, 7);
-    std::array<Position, 4> expectedPositions({2, HOME, HOME, HOME});
+    Player::Pieces expectedPositions({2, HOME, HOME, HOME});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
   {
     Player player{2, {65, HOME, HOME, HOME}};
 
     player.movePiece(65, 7);
-    std::array<Position, 4> expectedPositions({4, HOME, HOME, HOME});
+    Player::Pieces expectedPositions({4, HOME, HOME, HOME});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
   {
     Player player{2, {65, HOME, HOME, HOME}};
 
     player.movePiece(65, 34);
-    std::array<Position, 4> expectedPositions({firstHallway, HOME, HOME, HOME});
+    Player::Pieces expectedPositions({firstHallway, HOME, HOME, HOME});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
   {
     Player player{2, {65, HOME, HOME, HOME}};
 
     player.movePiece(65, 41);
-    std::array<Position, 4> expectedPositions({GOAL, HOME, HOME, HOME});
+    Player::Pieces expectedPositions({GOAL, HOME, HOME, HOME});
     ASSERT_EQ(player.pieces, expectedPositions);
   }
 }

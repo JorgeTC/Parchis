@@ -470,7 +470,7 @@ static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
 }
 
 std::vector<Game::Turn> Game::tripleDouble(PlayerNumber playerNumber) const {
-  Position lastTouchedPosition = *getLastTouched(playerNumber);
+  Position lastTouchedPosition = getLastTouched(playerNumber);
 
   // If the last touched piece can go back to HOME
   if (isCommonPosition(lastTouchedPosition)) {
@@ -585,8 +585,7 @@ Game Game::stateAfterMovement(const Player& player, Position ori,
   return Game(copiedPlayers);
 }
 
-Player::Pieces::const_iterator Game::getLastTouched(
-    PlayerNumber playerNumber) const {
+Position Game::getLastTouched(PlayerNumber playerNumber) const {
   constexpr std::size_t nPlayers{std::tuple_size<decltype(players)>()};
   if (playerNumber >= nPlayers) {
     throw std::invalid_argument("Got a non existing player");
@@ -609,5 +608,5 @@ void Game::setLastTouched(const Player& player, Position lastTouchedPosition) {
     throw Player::PieceNotFound("Wrong piece as last moved");
   }
 
-  lastTouched[player.playerNumber - 1] = itLastTouched;
+  lastTouched[player.playerNumber - 1] = lastTouchedPosition;
 };

@@ -31,7 +31,7 @@ using MovementsSequence = std::vector<unsigned int>;
 class Game {
  public:
   using Players = std::array<Player, 2>;
-  using LastTouched = std::array<const Position*, 2>;
+  using LastTouched = std::array<Position, 2>;
 
   // The movements a player does to get to a particular table state
   struct Turn {
@@ -73,7 +73,7 @@ class Game {
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);
 
-  const Position* getLastTouched(PlayerNumber) const;
+  Position getLastTouched(PlayerNumber) const;
   void setLastTouched(PlayerNumber, Position);
   void setLastTouched(const Player&, Position);
 
@@ -101,7 +101,7 @@ class Game {
 
       // If no other information is given,
       // I pick the last touched piece is the first one
-      values[i] = player.pieces.begin();
+      values[i] = player.pieces.front();
     }
 
     return values;

@@ -625,7 +625,6 @@ TEST(TestGame, LastTouchedRecord) {
 
   Game game(players);
   game.movePiece(1, 7, 6);
-  const Position* lastTouched = game.getLastTouched(1);
-  ASSERT_NE(lastTouched, nullptr);
-  ASSERT_EQ(*lastTouched, 13);
+  Position lastTouched = game.getLastTouched(1);
+  ASSERT_EQ(lastTouched, 13);
 }

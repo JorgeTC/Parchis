@@ -52,7 +52,7 @@ static Game getFinalState(const Game::Players& players, DicePairRoll dices,
   return game;
 }
 
-TEST(TestGame, TestMoveToWin) {
+TEST(TestGame, MoveToWin) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 2}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -63,7 +63,7 @@ TEST(TestGame, TestMoveToWin) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestMoveToWinDicesInversion) {
+TEST(TestGame, MoveToWinDicesInversion) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 2}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -74,7 +74,7 @@ TEST(TestGame, TestMoveToWinDicesInversion) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestDontGetTooCloseToGoal) {
+TEST(TestGame, DontGetTooCloseToGoal) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 5}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -86,7 +86,7 @@ TEST(TestGame, TestDontGetTooCloseToGoal) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestForcedToGetOutOfHome) {
+TEST(TestGame, ForcedToGetOutOfHome) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL - 5, HOME}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -97,7 +97,7 @@ TEST(TestGame, TestForcedToGetOutOfHome) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestForcedToGetOutOfHomeTwice) {
+TEST(TestGame, ForcedToGetOutOfHomeTwice) {
   Game::Players players{Player({1, {GOAL, GOAL - 5, HOME, HOME}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -109,7 +109,7 @@ TEST(TestGame, TestForcedToGetOutOfHomeTwice) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestForcedToGetOutOfHomeAndMove) {
+TEST(TestGame, ForcedToGetOutOfHomeAndMove) {
   Game::Players players{Player({1, {GOAL, GOAL - 1, HOME, HOME}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -121,7 +121,7 @@ TEST(TestGame, TestForcedToGetOutOfHomeAndMove) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestMoveOnGoal) {
+TEST(TestGame, MoveOnGoal) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, GOAL - 1, initialPosition, HOME}}),
@@ -135,7 +135,7 @@ TEST(TestGame, TestMoveOnGoal) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestCannotMoveOnGoal) {
+TEST(TestGame, CannotMoveOnGoal) {
   // Once I get to goal I will win 10 advances,
   // but I have no pieces that can use them
   Game::Players players{Player({1, {GOAL, GOAL - 1, GOAL - 3, HOME}}),
@@ -157,7 +157,7 @@ TEST(TestGame, TestCannotMoveOnGoal) {
   ASSERT_TRUE(piecesAtHome == 1);
 }
 
-TEST(TestGame, TestCannotMoveAfterBoostOnGoal) {
+TEST(TestGame, CannotMoveAfterBoostOnGoal) {
   // I can get to goal with one dice, I can use the boost
   // but I cannot use the other dice
   Game::Players players{Player({1, {GOAL, GOAL - 1, 61, GOAL}}),
@@ -169,7 +169,7 @@ TEST(TestGame, TestCannotMoveAfterBoostOnGoal) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestConsecutiveGoalBoost) {
+TEST(TestGame, ConsecutiveGoalBoost) {
   Game::Players players{Player({1, {GOAL, GOAL - 1, 62, 58}}),
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
@@ -182,7 +182,7 @@ TEST(TestGame, TestConsecutiveGoalBoost) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestGoalBoostWithFullDice) {
+TEST(TestGame, GoalBoostWithFullDice) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, GOAL - 4, initialPosition, HOME}}),
@@ -196,7 +196,7 @@ TEST(TestGame, TestGoalBoostWithFullDice) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestEatAdversary) {
+TEST(TestGame, EatAdversary) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, initialPosition}}),
@@ -211,7 +211,7 @@ TEST(TestGame, TestEatAdversary) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestDontEatOnSafePosition) {
+TEST(TestGame, DontEatOnSafePosition) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, initialPosition}}),
@@ -224,7 +224,7 @@ TEST(TestGame, TestDontEatOnSafePosition) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestDontEatOnHallway) {
+TEST(TestGame, DontEatOnHallway) {
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, GOAL - 7}}),
                         Player({2, {GOAL, GOAL, GOAL, GOAL - 1}})};
 
@@ -234,7 +234,7 @@ TEST(TestGame, TestDontEatOnHallway) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestChooseToEat) {
+TEST(TestGame, ChooseToEat) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, GOAL, GOAL, initialPosition}}),
@@ -247,7 +247,7 @@ TEST(TestGame, TestChooseToEat) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestAdversaryEatsMe) {
+TEST(TestGame, AdversaryEatsMe) {
   Game::Players players{Player({1, {GOAL, GOAL, 61, GOAL}}),
                         Player({2, {GOAL, GOAL, 59, HOME}})};
 
@@ -258,7 +258,7 @@ TEST(TestGame, TestAdversaryEatsMe) {
   testPlay(players, roll, 2, expectedBestPlay);
 }
 
-TEST(TestGame, TestBoostMixture) {
+TEST(TestGame, BoostMixture) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{Player({1, {GOAL, initialPosition, 62, 52}}),
@@ -277,7 +277,7 @@ TEST(TestGame, TestBoostMixture) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestLoadBarrierSamePlayer) {
+TEST(TestGame, LoadBarrierSamePlayer) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   // Create a combination in which player 1 could eat player 2
@@ -290,7 +290,7 @@ TEST(TestGame, TestLoadBarrierSamePlayer) {
   ASSERT_TRUE(game.barriers == std::set<Position>{62});
 }
 
-TEST(TestGame, TestLoadBarrierDifferentPlayers) {
+TEST(TestGame, LoadBarrierDifferentPlayers) {
   Game::Players players{Player({1, {GOAL, 1, 61, GOAL - 1}}),
                         Player({2, {GOAL, 1, 62, GOAL - 1}})};
 
@@ -299,7 +299,7 @@ TEST(TestGame, TestLoadBarrierDifferentPlayers) {
   ASSERT_TRUE(game.barriers == std::set<Position>{1});
 }
 
-TEST(TestGame, TestNotBarrierOnHallway) {
+TEST(TestGame, NotBarrierOnHallway) {
   // Create a combination in which player 1 could eat player 2
   // if it was not for the barrier
   Game::Players players{Player({1, {HOME, HOME, GOAL - 1, GOAL - 1}}),
@@ -310,7 +310,7 @@ TEST(TestGame, TestNotBarrierOnHallway) {
   ASSERT_TRUE(game.barriers == std::set<Position>{62});
 }
 
-TEST(TestGame, TestDontCrossBarrier) {
+TEST(TestGame, DontCrossBarrier) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   // Create a combination in which player 1 could eat player 2
@@ -325,7 +325,7 @@ TEST(TestGame, TestDontCrossBarrier) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestDontGoOutIfBarrier) {
+TEST(TestGame, DontGoOutIfBarrier) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{
@@ -354,7 +354,7 @@ TEST(TestGame, TestDontGoOutIfBarrier) {
   ASSERT_TRUE(piecesAtHome == 1);
 }
 
-TEST(TestGame, TestGoOutAfterRemoveBarrier) {
+TEST(TestGame, GoOutAfterRemoveBarrier) {
   Position initialPosition = getPlayerInitialPosition(1);
 
   Game::Players players{
@@ -368,7 +368,7 @@ TEST(TestGame, TestGoOutAfterRemoveBarrier) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestCreateBarrierAfterMove) {
+TEST(TestGame, CreateBarrierAfterMove) {
   Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
                         Player({2, {HOME, HOME, 8, HOME}})};
 
@@ -389,7 +389,7 @@ TEST(TestGame, TestCreateBarrierAfterMove) {
   ASSERT_TRUE(game.barriers == std::set<Position>{8});
 }
 
-TEST(TestGame, TestEatOnExit) {
+TEST(TestGame, EatOnExit) {
   Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
                         Player({2, {HOME, HOME, 1, HOME}})};
 
@@ -400,7 +400,7 @@ TEST(TestGame, TestEatOnExit) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestNotEatOnExit) {
+TEST(TestGame, NotEatOnExit) {
   Game::Players players{Player({1, {GOAL, GOAL, HOME, HOME}}),
                         Player({2, {HOME, HOME, 1, HOME}})};
 
@@ -411,7 +411,7 @@ TEST(TestGame, TestNotEatOnExit) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestEnemyBarrierOnExit) {
+TEST(TestGame, EnemyBarrierOnExit) {
   Game::Players players{Player({1, {GOAL, GOAL, HOME, HOME}}),
                         Player({2, {HOME, HOME, 1, 1}})};
 
@@ -423,7 +423,7 @@ TEST(TestGame, TestEnemyBarrierOnExit) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestExitAfterBreakingBarrierWithBoost) {
+TEST(TestGame, ExitAfterBreakingBarrierWithBoost) {
   Game::Players players{Player({1, {59, 1, 1, HOME}}),
                         Player({2, {HOME, HOME, HOME, 60}})};
 
@@ -435,7 +435,7 @@ TEST(TestGame, TestExitAfterBreakingBarrierWithBoost) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestBreakBarrierOnDouble) {
+TEST(TestGame, BreakBarrierOnDouble) {
   // Place a piece on a position that would let me insert one piece
   // Instead of choosing that option, the barrier must be broken
   Game::Players players{Player({1, {GOAL - 5, 1, 1, HOME}}),
@@ -448,7 +448,7 @@ TEST(TestGame, TestBreakBarrierOnDouble) {
   testPlay(players, roll, 1, expectedBestPlay);
 }
 
-TEST(TestGame, TestBreakTheOnlyPossibleBarrier) {
+TEST(TestGame, BreakTheOnlyPossibleBarrier) {
   // Player 1 has two barriers: in position 42 and in position 7.
   // There is another barrier on 47 so barrier on 42 cannot be broken with a 6.
   // The barrier on 7 must be broken.
@@ -474,7 +474,7 @@ TEST(TestGame, TestBreakTheOnlyPossibleBarrier) {
   }
 }
 
-TEST(TestGame, TestBreakSecondBarrierWithBoost) {
+TEST(TestGame, BreakSecondBarrierWithBoost) {
   Game::Players players{Player({1, {2, 2, 46, 46}}),
                         Player({2, {3, GOAL, 13, 13}})};
 
@@ -493,7 +493,7 @@ TEST(TestGame, TestBreakSecondBarrierWithBoost) {
   }
 }
 
-TEST(TestGame, TestMustMoveBarrier) {
+TEST(TestGame, MustMoveBarrier) {
   Game::Players players{Player({1, {1, 1, GOAL, GOAL}}),
                         Player({2, {3, 3, GOAL, GOAL}})};
 

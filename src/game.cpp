@@ -255,7 +255,8 @@ Position Game::movePiece(PlayerNumber playerNumber, Position piece,
 
 Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
   Position destPosition = player.movePiece(piece, advance, barriers);
-  barriers = loadBarriers(players);
+  updateInnerState(player, destPosition);
+
   return destPosition;
 };
 
@@ -272,7 +273,7 @@ void Game::takePiece(Player& player, Position piece, Position dest) {
 
   Position& pieceToMove = *itPiece;
   pieceToMove = dest;
-  barriers = loadBarriers(players);
+  updateInnerState(player, dest);
 };
 
 void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
@@ -282,11 +283,21 @@ void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
 
 void Game::pieceEaten(Player& player, Position eatenPiece) {
   player.pieceEaten(eatenPiece);
-  barriers = loadBarriers(players);
+
+  updateInnerState(player, HOME);
 };
+
+void Game::updateInnerState(const Player& player, Position destPosition) {
+  barriers = loadBarriers(players);
+  setLastTouched(player, destPosition);
+}
 
 static bool doubleDices(const MovementsSequence& advances) {
   return advances.size() == 2 && advances.front() == advances.back();
+}
+
+static bool doubleDices(const DicePairRoll& dices) {
+  return dices.first == dices.second;
 }
 
 static std::set<Position> piecesOnBarrier(const Player& currentPlayer,
@@ -458,8 +469,31 @@ static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
   return false;
 }
 
+std::vector<Game::Turn> Game::tripleDouble(PlayerNumber playerNumber) const {
+  Position lastTouched = *getLastTouched(playerNumber);
+
+  // If the last touched piece can go back to HOME
+  if (isCommonPosition(lastTouched)) {
+    Game newGame = *this;
+    newGame.pieceEaten(playerNumber, lastTouched);
+    Move goHomeMove{playerNumber, lastTouched, HOME};
+    return {{newGame.players, Play({goHomeMove})}};
+  } else {
+    // If the piece cannot go back home I cannot make movement anyway
+    // So leave the table as it is and go to the next player
+    return {{players, Play({})}};
+  }
+};
+
 std::vector<Game::Turn> Game::allPossibleStates(
-    const Player& currentPlayer, const DicePairRoll& dices) const {
+    const Player& currentPlayer, const DicePairRoll& dices,
+    unsigned int rollsInARow /* = 1*/) const {
+  // If this is the third double, exit the function and take the last touched
+  // piece to HOME
+  if (rollsInARow == 3 && doubleDices(dices)) {
+    return tripleDouble(currentPlayer.playerNumber);
+  }
+
   // From de dices get the sequences of movements
   auto possibleMovements = movementsSequences(currentPlayer, dices);
   std::vector<Turn> states;
@@ -550,3 +584,30 @@ Game Game::stateAfterMovement(const Player& player, Position ori,
 
   return Game(copiedPlayers);
 }
+
+Player::Pieces::const_iterator Game::getLastTouched(
+    PlayerNumber playerNumber) const {
+  constexpr std::size_t nPlayers{std::tuple_size<decltype(players)>()};
+  if (playerNumber >= nPlayers) {
+    throw std::invalid_argument("Got a non existing player");
+  }
+
+  return lastTouched[playerNumber - 1];
+};
+
+void Game::setLastTouched(PlayerNumber playerNumber,
+                          Position lastTouchedPosition) {
+  Player& playerToUpdate = getPlayer(playerNumber);
+  setLastTouched(playerToUpdate, lastTouchedPosition);
+};
+
+void Game::setLastTouched(const Player& player, Position lastTouchedPosition) {
+  const Player::Pieces& pieces = player.pieces;
+  auto itLastTouched =
+      std::find(pieces.begin(), pieces.end(), lastTouchedPosition);
+  if (itLastTouched == pieces.end()) {
+    throw Player::PieceNotFound("Wrong piece as last moved");
+  }
+
+  lastTouched[player.playerNumber - 1] = itLastTouched;
+};

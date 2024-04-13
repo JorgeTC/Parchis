@@ -1,14 +1,15 @@
 #include "game.hpp"
 
-#include <array>     // for array
-#include <cmath>     // for INFINITY
-#include <iterator>  // for move_iterator, make_move_iterator, next
-#include <set>
+#include <algorithm>  // for find, remove_if
+#include <array>      // for array
+#include <cmath>      // for INFINITY
+#include <iterator>   // for move_iterator, next, make_move_iterator
+#include <set>        // for set, operator==, erase_if, set<>::const_iterator
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error
 
-#include "player.hpp"  // for Player, Player::WrongMove
-#include "table.hpp"   // for HOME, Position, isCommonPosition, PlayerNumber
+#include "player.hpp"  // for Player, Player::WrongMove, Player::PieceNotFound
+#include "table.hpp"   // for HOME, Position, PlayerNumber, getPlayerInitial...
 
 static constexpr unsigned int EXTRA_MOVEMENT_ON_GOAL = 10;
 static constexpr unsigned int EXTRA_MOVEMENT_ON_KILL = 20;
@@ -443,7 +444,6 @@ static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
   const Play& movements = turn.movements;
   const Move& firstMove = movements.front();
   Position firstMovedPiece = firstMove.origin;
-  Position destFirstMovedPiece = firstMove.dest;
   bool brokeBarrier{barriers.find(firstMovedPiece) != barriers.end()};
   if (!brokeBarrier) return false;
 

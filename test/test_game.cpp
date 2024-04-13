@@ -1,11 +1,14 @@
 #include <gtest/gtest.h>  // for Test, SuiteApiResolver, TestInfo (ptr only)
 
-#include <set>     // for operator==, set
-#include <string>  // for string
-#include <vector>  // for allocator, vector
+#include <algorithm>  // for count
+#include <array>      // for array
+#include <memory>     // for allocator_traits<>::value_type
+#include <set>        // for operator==, set
+#include <string>     // for allocator, string
+#include <vector>     // for vector
 
 #include "dices.hpp"   // for DicePairRoll
-#include "game.hpp"    // for Game, Play, Game::Players, Move, ScoredPlay
+#include "game.hpp"    // for Play, Game, Game::Players, Move, ScoredPlay
 #include "player.hpp"  // for Player
 #include "table.hpp"   // for GOAL, HOME, getPlayerInitialPosition, Position
 
@@ -366,8 +369,6 @@ TEST(TestGame, TestGoOutAfterRemoveBarrier) {
 }
 
 TEST(TestGame, TestCreateBarrierAfterMove) {
-  Position initialPosition = getPlayerInitialPosition(1);
-
   Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
                         Player({2, {HOME, HOME, 8, HOME}})};
 

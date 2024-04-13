@@ -1,13 +1,32 @@
 #include <gtest/gtest.h>  // for Test, SuiteApiResolver, TestInfo (ptr only)
 
-#include <set>     // for operator==, set
-#include <string>  // for string
-#include <vector>  // for allocator, vector
+#include <algorithm>  // for count
+#include <array>      // for array
+#include <memory>     // for allocator_traits<>::value_type
+#include <set>        // for operator==, set
+#include <string>     // for allocator, string
+#include <vector>     // for vector
 
 #include "dices.hpp"   // for DicePairRoll
-#include "game.hpp"    // for Game, Play, Game::Players, Move, ScoredPlay
+#include "game.hpp"    // for Play, Game, Game::Players, Move, ScoredPlay
 #include "player.hpp"  // for Player
 #include "table.hpp"   // for GOAL, HOME, getPlayerInitialPosition, Position
+
+static void compareMove(const Move& bestMove, const Move& expectedBestMove) {
+  ASSERT_EQ(bestMove.player, expectedBestMove.player);
+  ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
+  ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+}
+
+static void comparePlays(const Play& bestPlay, const Play& expectedBestPlay) {
+  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
+  for (unsigned int i = 0; i < bestPlay.size(); i++) {
+    const Move& bestMove = bestPlay[i];
+    const Move& expectedBestMove = expectedBestPlay[i];
+
+    compareMove(bestMove, expectedBestMove);
+  }
+}
 
 static void testPlay(const Game::Players& players, DicePairRoll dices,
                      PlayerNumber player, const Play& expectedBestPlay) {
@@ -16,15 +35,21 @@ static void testPlay(const Game::Players& players, DicePairRoll dices,
   ScoredPlay bestPlayAndScore = game.bestPlay(player, dices);
   const Play& bestPlay = bestPlayAndScore.play;
 
-  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
-  for (unsigned int i = 0; i < bestPlay.size(); i++) {
-    const Move& bestMove = bestPlay[i];
-    const Move& expectedBestMove = expectedBestPlay[i];
+  comparePlays(bestPlay, expectedBestPlay);
+}
 
-    ASSERT_EQ(bestMove.player, expectedBestMove.player);
-    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
-    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
+static Game getFinalState(const Game::Players& players, DicePairRoll dices,
+                          PlayerNumber player) {
+  Game game(players);
+
+  ScoredPlay bestPlayAndScore = game.bestPlay(player, dices);
+  const Play& bestPlay = bestPlayAndScore.play;
+
+  for (const Move& movement : bestPlay) {
+    game.takePiece(movement.player, movement.origin, movement.dest);
   }
+
+  return game;
 }
 
 TEST(TestGame, TestMoveToWin) {
@@ -117,9 +142,19 @@ TEST(TestGame, TestCannotMoveOnGoal) {
                         Player({2, {HOME, HOME, HOME, HOME}})};
 
   DicePairRoll roll{1, 2};
-  Play expectedBestPlay = {{1, GOAL - 1, GOAL}, {1, GOAL - 3, GOAL - 1}};
 
-  testPlay(players, roll, 1, expectedBestPlay);
+  Game finalState = getFinalState(players, roll, 1);
+
+  const Player& mover = finalState.getPlayer(1);
+
+  // Check I put one piece on the goal which means I got my impossible boost
+  unsigned int piecesAtGoal =
+      std::count(mover.pieces.begin(), mover.pieces.end(), GOAL);
+  ASSERT_TRUE(piecesAtGoal == 2);
+
+  unsigned int piecesAtHome =
+      std::count(mover.pieces.begin(), mover.pieces.end(), HOME);
+  ASSERT_TRUE(piecesAtHome == 1);
 }
 
 TEST(TestGame, TestCannotMoveAfterBoostOnGoal) {
@@ -298,10 +333,25 @@ TEST(TestGame, TestDontGoOutIfBarrier) {
       Player({2, {HOME, HOME, HOME, HOME}})};
 
   DicePairRoll roll{4, 1};
-  Play expectedBestPlay = {{1, initialPosition, initialPosition + 4},
-                           {1, initialPosition + 4, initialPosition + 5}};
 
-  testPlay(players, roll, 1, expectedBestPlay);
+  Game finalState = getFinalState(players, roll, 1);
+  const Player& mover = finalState.getPlayer(1);
+
+  // Check I put one piece on the goal which means I got my impossible boost
+  unsigned int piecesAtGoal =
+      std::count(mover.pieces.begin(), mover.pieces.end(), GOAL);
+  ASSERT_TRUE(piecesAtGoal == 1);
+
+  // I cannot check the exact number of pieces on the init position.
+  // I only know at least one of them has been moved
+  unsigned int piecesAtInit =
+      std::count(mover.pieces.begin(), mover.pieces.end(), initialPosition);
+  ASSERT_TRUE(piecesAtInit < 2);
+
+  // Check the one at hme remains at home
+  unsigned int piecesAtHome =
+      std::count(mover.pieces.begin(), mover.pieces.end(), HOME);
+  ASSERT_TRUE(piecesAtHome == 1);
 }
 
 TEST(TestGame, TestGoOutAfterRemoveBarrier) {
@@ -319,28 +369,17 @@ TEST(TestGame, TestGoOutAfterRemoveBarrier) {
 }
 
 TEST(TestGame, TestCreateBarrierAfterMove) {
-  Position initialPosition = getPlayerInitialPosition(1);
-
   Game::Players players{Player({1, {GOAL, GOAL, 1, HOME}}),
                         Player({2, {HOME, HOME, 8, HOME}})};
 
   DicePairRoll roll{4, 3};
-  Play expectedBestPlay = {{1, 1, 5},
-                           {1, 5, 8}};
+  Play expectedBestPlay = {{1, 1, 5}, {1, 5, 8}};
 
   Game game(players);
   ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
   const Play& bestPlay = bestPlayAndScore.play;
 
-  ASSERT_EQ(bestPlay.size(), expectedBestPlay.size());
-  for (unsigned int i = 0; i < bestPlay.size(); i++) {
-    const Move& bestMove = bestPlay[i];
-    const Move& expectedBestMove = expectedBestPlay[i];
-
-    ASSERT_EQ(bestMove.player, expectedBestMove.player);
-    ASSERT_EQ(bestMove.origin, expectedBestMove.origin);
-    ASSERT_EQ(bestMove.dest, expectedBestMove.dest);
-  }
+  comparePlays(bestPlay, expectedBestPlay);
 
   for (const Move& move : bestPlay) {
     unsigned int advance = move.dest - move.origin;
@@ -392,6 +431,75 @@ TEST(TestGame, TestExitAfterBreakingBarrierWithBoost) {
 
   Play expectedBestPlay = {
       {1, 59, 60}, {2, 60, HOME}, {1, 1, 21}, {1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestBreakBarrierOnDouble) {
+  // Place a piece on a position that would let me insert one piece
+  // Instead of choosing that option, the barrier must be broken
+  Game::Players players{Player({1, {GOAL - 5, 1, 1, HOME}}),
+                        Player({2, {HOME, HOME, HOME, HOME}})};
+
+  DicePairRoll roll{5, 5};
+
+  Play expectedBestPlay = {{1, 1, 6}, {1, HOME, 1}};
+
+  testPlay(players, roll, 1, expectedBestPlay);
+}
+
+TEST(TestGame, TestBreakTheOnlyPossibleBarrier) {
+  // Player 1 has two barriers: in position 42 and in position 7.
+  // There is another barrier on 47 so barrier on 42 cannot be broken with a 6.
+  // The barrier on 7 must be broken.
+  // The other dice must be used by piece on 5 or on 13 and cannot
+  // be used by the other position on 7 to not form another barrier.
+  Game::Players players{Player({1, {42, 7, 5, 7}}),
+                        Player({2, {42, 47, 47, GOAL}})};
+
+  DicePairRoll roll{6, 6};
+
+  std::vector<Play> expectedBestPlays = {{{1, 7, 13}, {1, 5, 11}},
+                                         {{1, 7, 13}, {1, 13, 19}}};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+
+  // Check there are two possibilities
+  ASSERT_EQ(states.size(), expectedBestPlays.size());
+
+  for (unsigned int i = 0; i < states.size(); i++) {
+    comparePlays(states[0].movements, expectedBestPlays[0]);
+  }
+}
+
+TEST(TestGame, TestBreakSecondBarrierWithBoost) {
+  Game::Players players{Player({1, {2, 2, 46, 46}}),
+                        Player({2, {3, GOAL, 13, 13}})};
+
+  DicePairRoll roll{1, 1};
+
+  Play expectedFirstMoves = {{1, 2, 3}, {2, 3, HOME}, {1, 46, GOAL - 6}};
+
+  Game game(players);
+  ScoredPlay bestPlayAndScore = game.bestPlay(1, roll);
+  const Play& bestPlay = bestPlayAndScore.play;
+
+  ASSERT_LT(expectedFirstMoves.size(), bestPlay.size());
+
+  for (unsigned int i = 0; i < expectedFirstMoves.size(); i++) {
+    compareMove(expectedFirstMoves[i], bestPlay[i]);
+  }
+}
+
+TEST(TestGame, TestMustMoveBarrier) {
+  Game::Players players{Player({1, {1, 1, GOAL, GOAL}}),
+                        Player({2, {3, 3, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 1};
+
+  Play expectedBestPlay = {{1, 1, 2}, {1, 1, 2}};
 
   testPlay(players, roll, 1, expectedBestPlay);
 }

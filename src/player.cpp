@@ -46,18 +46,8 @@ double Player::punctuation() const {
   return punctuation;
 }
 
-bool Player::hasTwoPiecesInPosition(Position targetPosition) const {
-  bool seen = false;
-  for (Position piece : pieces) {
-    if (piece != targetPosition) continue;
-    // If this is the second time i see this position, exit the function
-    if (seen) return true;
-    // Save that I have seen it once
-    seen = true;
-  }
-
-  // I have not seen the position twice
-  return false;
+unsigned int Player::countPiecesInPosition(Position targetPosition) const {
+  return std::count(pieces.begin(), pieces.end(), targetPosition);
 }
 
 static Position destinyPosition(Position pieceToMove,
@@ -158,7 +148,7 @@ bool Player::canGoToInitialPosition() const {
   // The only reason I cannot go to the first position is if there are more than
   // two pieces of mine
   Position initialPosition = getPlayerInitialPosition(playerNumber);
-  return !hasTwoPiecesInPosition(initialPosition);
+  return countPiecesInPosition(initialPosition) < 2;
 }
 
 Position Player::movePiece(Position pieceToMove, unsigned int positionsToMove,

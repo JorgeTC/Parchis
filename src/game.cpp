@@ -1,14 +1,15 @@
 #include "game.hpp"
 
-#include <array>     // for array
-#include <cmath>     // for INFINITY
-#include <iterator>  // for move_iterator, make_move_iterator, next
-#include <set>
+#include <algorithm>  // for find, remove_if
+#include <array>      // for array
+#include <cmath>      // for INFINITY
+#include <iterator>   // for move_iterator, next, make_move_iterator
+#include <set>        // for set, operator==, erase_if, set<>::const_iterator
 #include <sstream>    // for operator<<, ostringstream, basic_ostream, basi...
 #include <stdexcept>  // for invalid_argument, logic_error
 
-#include "player.hpp"  // for Player, Player::WrongMove
-#include "table.hpp"   // for HOME, Position, isCommonPosition, PlayerNumber
+#include "player.hpp"  // for Player, Player::WrongMove, Player::PieceNotFound
+#include "table.hpp"   // for HOME, Position, PlayerNumber, getPlayerInitial...
 
 static constexpr unsigned int EXTRA_MOVEMENT_ON_GOAL = 10;
 static constexpr unsigned int EXTRA_MOVEMENT_ON_KILL = 20;
@@ -155,7 +156,7 @@ static bool canTakeOutPieces(const Player& currentPlayer) {
   Position initialPosition =
       getPlayerInitialPosition(currentPlayer.playerNumber);
   bool isSpaceInInitialPosition =
-      !currentPlayer.hasTwoPiecesInPosition(initialPosition);
+      currentPlayer.countPiecesInPosition(initialPosition) < 2;
 
   return isSpaceInInitialPosition;
 }
@@ -258,6 +259,22 @@ Position Game::movePiece(Player& player, Position piece, unsigned int advance) {
   return destPosition;
 };
 
+void Game::takePiece(PlayerNumber playerNumber, Position piece, Position dest) {
+  Player& playerToMove = getPlayer(playerNumber);
+  takePiece(playerToMove, piece, dest);
+};
+
+void Game::takePiece(Player& player, Position piece, Position dest) {
+  auto itPiece = std::find(player.pieces.begin(), player.pieces.end(), piece);
+  if (itPiece == player.pieces.end()) {
+    throw Player::PieceNotFound("No piece to be moved");
+  }
+
+  Position& pieceToMove = *itPiece;
+  pieceToMove = dest;
+  barriers = loadBarriers(players);
+};
+
 void Game::pieceEaten(PlayerNumber playerNumber, Position eatenPiece) {
   Player& playerToMove = getPlayer(playerNumber);
   pieceEaten(playerToMove, eatenPiece);
@@ -267,6 +284,48 @@ void Game::pieceEaten(Player& player, Position eatenPiece) {
   player.pieceEaten(eatenPiece);
   barriers = loadBarriers(players);
 };
+
+static bool doubleDices(const MovementsSequence& advances) {
+  return advances.size() == 2 && advances.front() == advances.back();
+}
+
+static std::set<Position> piecesOnBarrier(const Player& currentPlayer,
+                                          const std::set<Position>& barriers) {
+  std::set<Position> uniquePiecesOnBarrier;
+  for (Position piece : currentPlayer.pieces) {
+    bool isPieceOnABarrier = barriers.find(piece) != barriers.end();
+    if (isPieceOnABarrier) {
+      uniquePiecesOnBarrier.insert(piece);
+    }
+  }
+
+  return uniquePiecesOnBarrier;
+}
+
+static bool pieceCanBeMoved(Position piece, PlayerNumber playerNumber,
+                            unsigned int advance, Game currentGame) {
+  Player& playerToMove = currentGame.getPlayer(playerNumber);
+  try {
+    // Try to move the piece calling the Player object because its function is a
+    // bit lighter
+    playerToMove.movePiece(piece, advance);
+  } catch (Player::WrongMove e) {
+    // The current piece cannot be moved as much as wanted
+    return false;
+  }
+
+  // The piece was moved successfully
+  return true;
+}
+
+static void filterPiecesThatCanBeMoved(std::set<Position>& pieces,
+                                       PlayerNumber playerNumber,
+                                       unsigned int advance,
+                                       const Game& currentGame) {
+  std::erase_if(pieces, [&](Position piece) {
+    return !pieceCanBeMoved(piece, playerNumber, advance, currentGame);
+  });
+}
 
 std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
     const Player& currentPlayer, const MovementsSequence& advances) const {
@@ -278,13 +337,38 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
   // Take the advance I will try to perform
   unsigned int advance = advances.front();
 
-  std::array<Position, 4> piecesToMove{currentPlayer.pieces};
+  std::set<Position> piecesToMove;
+
   // If the advance is 5 and I have pieces to take out from home, I cannot move
   // any other piece
-  if (advance == OUT_OF_HOME) {
-    if (canTakeOutPieces(currentPlayer)) {
-      piecesToMove = {HOME, HOME, HOME, HOME};
+  if (advance == OUT_OF_HOME && canTakeOutPieces(currentPlayer)) {
+    piecesToMove = {HOME};
+  }
+  // Check if I got doubles dices
+  else if (doubleDices(advances)) {
+    // Ask all the pieces that are on a barrier
+    std::set<Position> barrierPieces = piecesOnBarrier(currentPlayer, barriers);
+    // all of them are candidates to be moved.
+    piecesToMove = barrierPieces;
+    // Remove the barriers that cannot be broken
+    filterPiecesThatCanBeMoved(piecesToMove, currentPlayer.playerNumber,
+                               advance, *this);
+
+    // There is no barrier that can be broken,
+    // fill piecesToMove with the pieces that are not in barriers
+    if (piecesToMove.empty()) {
+      for (Position piece : currentPlayer.pieces) {
+        if (barrierPieces.find(piece) != barrierPieces.end())
+          piecesToMove.insert(piece);
+      }
     }
+  }
+
+  // If I have not mandatory pieces to move, all the pieces are candidates to be
+  // moved
+  if (piecesToMove.empty()) {
+    const auto& playerPieces = currentPlayer.pieces;
+    piecesToMove.insert(playerPieces.begin(), playerPieces.end());
   }
 
   for (Position piece : piecesToMove) {
@@ -345,6 +429,35 @@ std::vector<Game::Turn> Game::allPossibleStatesFromSequence(
   return states;
 }
 
+bool operator==(const Move& m1, const Move& m2) {
+  return m1.player == m2.player && m1.origin == m2.origin && m1.dest == m2.dest;
+}
+
+static bool hasMovedABarrier(const Game& currentGame, const Game::Turn& turn) {
+  // If I got a double dice I must break a barrier.
+  // This means that if I moved one element of the barrier,
+  // the other one cannot move to make another barrier just after the recent
+  // broken one.
+
+  const std::set<Position>& barriers = currentGame.barriers;
+  // Check the first piece I moved is in a barrier
+  const Play& movements = turn.movements;
+  const Move& firstMove = movements.front();
+  Position firstMovedPiece = firstMove.origin;
+  bool brokeBarrier{barriers.find(firstMovedPiece) != barriers.end()};
+  if (!brokeBarrier) return false;
+
+  for (auto itMovement = std::next(movements.begin());
+       itMovement != movements.end(); itMovement++) {
+    const Move& movement = *itMovement;
+    if (movement == firstMove) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices) const {
   // From de dices get the sequences of movements
@@ -356,6 +469,21 @@ std::vector<Game::Turn> Game::allPossibleStates(
     states.insert(states.end(), statesForSequence.begin(),
                   statesForSequence.end());
   }
+
+  // If I got double dices, reject the combinations
+  // of movements that have moved a barrier.
+  // Barriers must be broken, not moved
+  if (dices.first == dices.second) {
+    std::vector<Turn> filteredStates = states;
+    auto filter = std::remove_if(
+        filteredStates.begin(), filteredStates.end(),
+        [&](const Turn& turn) { return hasMovedABarrier(*this, turn); });
+    filteredStates.erase(filter, filteredStates.end());
+
+    // If there are no movements to be done, allow moving the barrier
+    if (!filteredStates.empty()) states = filteredStates;
+  }
+
   return states;
 }
 

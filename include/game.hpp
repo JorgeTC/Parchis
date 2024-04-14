@@ -56,9 +56,8 @@ class Game {
   std::vector<Turn> allPossibleStatesFromSequence(
       const Player& currentPlayer, const MovementsSequence& advances) const;
 
-  ScoredPlay bestPlay(PlayerNumber, DicePairRoll);
-  ScoredPlay bestPlay(const Player&, DicePairRoll);
-  ScoredPlay bestPlay(const Player&, DiceRoll);
+  ScoredPlay bestPlay(PlayerNumber, DicePairRoll, unsigned int rollsInARow = 1,
+                      unsigned int depth = 2) const;
 
   // Returns a pointer to the player who owns the piece
   // I would eat on the given position
@@ -79,6 +78,8 @@ class Game {
 
   const Player& getPlayer(PlayerNumber) const;
   Player& getPlayer(PlayerNumber);
+  const Player& getNextPlayer(PlayerNumber) const;
+  Player& getNextPlayer(PlayerNumber);
 
   Position getLastTouched(PlayerNumber) const;
   void setLastTouched(PlayerNumber, Position);
@@ -86,7 +87,8 @@ class Game {
 
   void updateInnerState(const Player&, Position);
 
-  double evaluateState(const Player&, unsigned int depth) const;
+  double evaluateState(const Player& currPlayer, const Player& nextPlayer,
+                       unsigned int depth, unsigned int rollsInARow) const;
   double nonRecursiveEvaluateState(const Player&) const;
 
   Game stateAfterMovement(const Player& player, Position ori,

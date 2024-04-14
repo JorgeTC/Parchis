@@ -53,11 +53,23 @@ Game::Game(const Turn::FinalState& state)
       lastTouched(state.lastTouched),
       barriers(loadBarriers(players)){};
 
-Player& getPlayer(Game::Players& players, PlayerNumber player) {
+static Player& getPlayer(Game::Players& players, PlayerNumber player) {
   switch (player) {
     case 1:
     case 2:
       return players[player - 1];
+    default:
+      throw std::invalid_argument("Got a non existing player");
+      break;
+  }
+};
+
+static Player& getNextPlayer(Game::Players& players, PlayerNumber player) {
+  switch (player) {
+    case 1:
+      return players[1];
+    case 2:
+      return players[0];
     default:
       throw std::invalid_argument("Got a non existing player");
       break;
@@ -75,6 +87,15 @@ const Player& Game::getPlayer(PlayerNumber player) const {
 
 Player& Game::getPlayer(PlayerNumber player) {
   return ::getPlayer(players, player);
+};
+
+const Player& Game::getNextPlayer(PlayerNumber player) const {
+  return const_cast<const Player&>(
+      const_cast<Game*>(this)->getNextPlayer(player));
+};
+
+Player& Game::getNextPlayer(PlayerNumber player) {
+  return ::getNextPlayer(players, player);
 };
 
 static Move constructMove(const Player& oldPlayer, const Player& newPlayer) {
@@ -526,7 +547,8 @@ static bool operator<(const Game::Turn::FinalState& t1,
   return false;
 }
 
-static std::vector<Game::Turn> uniqueStates(const std::vector<Game::Turn>& states) {
+static std::vector<Game::Turn> uniqueStates(
+    const std::vector<Game::Turn>& states) {
   std::set<Game::Turn::FinalState> seenStates;
 
   std::vector<Game::Turn> vtUniqueStates;
@@ -594,15 +616,59 @@ double Game::nonRecursiveEvaluateState(const Player& currentPlayer) const {
 }
 
 double Game::evaluateState(const Player& currentPlayer,
-                           unsigned int depth) const {
+                           const Player& nextPlayer, unsigned int depth,
+                           unsigned int rollsInARow) const {
+  // Non recursive case
   if (depth == 0) {
     return nonRecursiveEvaluateState(currentPlayer);
   }
+
+  // Make a weighted average of the punctuations after the next movement has
+  // been made
+  double punctuation = 0;
+  // Iterate all the possible dices rolls for the next turn
+  for (auto [roll, probability] : getUnorderedRollsProb()) {
+    // If turn has changed, the rolls ina row reset to 1
+    bool isSamePlayer = (currentPlayer.playerNumber == nextPlayer.playerNumber);
+    unsigned int nextRollsInARow = isSamePlayer ? rollsInARow + 1 : 1;
+
+    // With this dices which is the best movement the next player can make
+    ScoredPlay scoredBestPlay =
+        bestPlay(nextPlayer.playerNumber, roll, nextRollsInARow, depth - 1);
+
+    // I know what the next player is going to make, now I have to estimate a
+    // punctuation from pmy perspective of this action
+    if (isSamePlayer) {
+      punctuation += scoredBestPlay.score * probability;
+    } else {
+      // TODO: This calculation considers everything that is good for my
+      // opponent is bad for me and vice versa. If there were more than two
+      // players that would not be the case
+      punctuation -= scoredBestPlay.score * probability;
+    }
+  }
+
+  return punctuation;
+
   throw std::logic_error("Not implemented error");
 }
 
-ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
+static double evaluateStateInDepth(Game::Turn::FinalState state,
+                                   const Player& currentPlayer,
+                                   const Player& nextPlayer, unsigned int depth,
+                                   unsigned int rollsInARow) {
+  Game newGame(state);
+  double evaluation =
+      newGame.evaluateState(currentPlayer, nextPlayer, depth, rollsInARow);
+  return evaluation;
+}
+
+ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices,
+                          unsigned int rollsInARow /*= 1*/,
+                          unsigned int depth /*= 1*/) const {
   const Player& player{getPlayer(playerId)};
+  const Player& nextPlayer{doubleDices(dices) ? player
+                                              : getNextPlayer(playerId)};
 
   ScoredPlay bestPlay = {{}, INFINITY};
   // Get all the possible states I can get with this dice roll
@@ -618,13 +684,18 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
     }
 
     // Evaluate the current state with the needed depth
-    double evaluation = Game(turn.finalState).evaluateState(finalPlayerSate, 0);
+    double evaluation = evaluateStateInDepth(turn.finalState, player,
+                                             nextPlayer, depth, rollsInARow);
     // If the state is better that the best found till now, update the
     // movements
     if (evaluation < bestPlay.score) {
       bestPlay = {turn.movements, evaluation};
     }
   }
+
+  // There are no more possible movements, so evaluate the current state
+  bestPlay.score = evaluateStateInDepth(getState(), player, nextPlayer,
+                                        depth, rollsInARow);
 
   // Return the best movements
   return bestPlay;

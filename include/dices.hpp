@@ -120,5 +120,20 @@ static constexpr double getRollProbability(DicePairRoll diceRoll) {
                                            : PROB_NOT_DOUBLE_DICE;
 }
 
+// Possible different rolls and its probability
+using UnorderedRollsProb = std::array<std::pair<DicePairRoll, double>, N_UNIQUE_DICE_ROLLS>;
+
+static constexpr UnorderedRollsProb getUnorderedRollsProb() {
+  UnorderedRollsProb unorderedRolls{};
+
+  auto unorderedRollsIt{unorderedRolls.begin()};
+  for (const DicePairRoll& pairRoll : getUnorderedRolls()) {
+    *unorderedRollsIt = {pairRoll, getRollProbability(pairRoll)};
+    unorderedRollsIt++;
+  }
+
+  return unorderedRolls;
+}
+
 // Number needed to get of from home
 static constexpr DiceRoll OUT_OF_HOME = 5;

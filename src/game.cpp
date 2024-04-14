@@ -449,7 +449,8 @@ bool operator==(const Move& m1, const Move& m2) {
   return m1.player == m2.player && m1.origin == m2.origin && m1.dest == m2.dest;
 }
 
-static bool hasMovedABarrier(const std::set<Position>& barriers, const Game::Turn& turn) {
+static bool hasMovedABarrier(const std::set<Position>& barriers,
+                             const Game::Turn& turn) {
   // If I got a double dice I must break a barrier.
   // This means that if I moved one element of the barrier,
   // the other one cannot move to make another barrier just after the recent
@@ -489,6 +490,58 @@ std::vector<Game::Turn> Game::tripleDouble(PlayerNumber playerNumber) const {
   }
 };
 
+static bool operator<(const Game::Turn::FinalState& t1,
+                      const Game::Turn::FinalState& t2) {
+  // Check the pieces
+  for (unsigned int playerIndex = 0; playerIndex < t1.players.size();
+       playerIndex++) {
+    const Player::Pieces& pieces1 = t1.players[playerIndex].pieces;
+    Player::Pieces sortedPieces1;
+    std::partial_sort_copy(pieces1.begin(), pieces1.end(),
+                           sortedPieces1.begin(), sortedPieces1.end());
+
+    const Player::Pieces& pieces2 = t2.players[playerIndex].pieces;
+    Player::Pieces sortedPieces2;
+    std::partial_sort_copy(pieces2.begin(), pieces2.end(),
+                           sortedPieces2.begin(), sortedPieces2.end());
+    for (unsigned int pieceIndex = 0; pieceIndex < sortedPieces2.size();
+         pieceIndex++) {
+      if (sortedPieces1[pieceIndex] < sortedPieces2[pieceIndex]) {
+        return true;
+      } else if (sortedPieces1[pieceIndex] > sortedPieces2[pieceIndex]) {
+        return false;
+      }
+    }
+  }
+
+  // Check last touched
+  for (unsigned int playerIndex = 0; playerIndex < t1.lastTouched.size();
+       playerIndex++) {
+    if (t1.lastTouched[playerIndex] < t2.lastTouched[playerIndex]) {
+      return true;
+    } else if (t1.lastTouched[playerIndex] > t2.lastTouched[playerIndex]) {
+      return false;
+    }
+  }
+  return false;
+}
+
+static std::vector<Game::Turn> uniqueStates(const std::vector<Game::Turn>& states) {
+  std::set<Game::Turn::FinalState> seenStates;
+
+  std::vector<Game::Turn> vtUniqueStates;
+  vtUniqueStates.reserve(states.size());
+
+  for (const Game::Turn& state : states) {
+    if (seenStates.find(state.finalState) == seenStates.end()) {
+      vtUniqueStates.push_back(state);
+      seenStates.insert(state.finalState);
+    }
+  }
+
+  return vtUniqueStates;
+}
+
 std::vector<Game::Turn> Game::allPossibleStates(
     const Player& currentPlayer, const DicePairRoll& dices,
     unsigned int rollsInARow /* = 1*/) const {
@@ -507,6 +560,8 @@ std::vector<Game::Turn> Game::allPossibleStates(
     states.insert(states.end(), statesForSequence.begin(),
                   statesForSequence.end());
   }
+  // Remove the states which would leave me on the same state
+  states = uniqueStates(states);
 
   // If I got double dices, reject the combinations
   // of movements that have moved a barrier.
@@ -564,7 +619,8 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices) {
 
     // Evaluate the current state with the needed depth
     double evaluation = Game(turn.finalState).evaluateState(finalPlayerSate, 0);
-    // If the state is better that the best found till now, update the movements
+    // If the state is better that the best found till now, update the
+    // movements
     if (evaluation < bestPlay.score) {
       bestPlay = {turn.movements, evaluation};
     }

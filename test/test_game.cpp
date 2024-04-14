@@ -647,3 +647,82 @@ TEST(TestGame, LastTouchedInTurn) {
   for (const Game::Turn& state : states)
     ASSERT_EQ(state.finalState.lastTouched[0], 10);
 }
+
+TEST(TestGame, NonRepetitionStates) {
+  Game::Players players{Player({1, {HOME, 7, HOME, GOAL}}),
+                        Player({2, {HOME, HOME, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 2};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  ASSERT_EQ(states.size(), 1);
+}
+
+TEST(TestGame, NonRepetitionStatesOrderInPieces) {
+  Game::Players players{Player({1, {HOME, 7, 7, GOAL}}),
+                        Player({2, {HOME, HOME, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 1};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  ASSERT_EQ(states.size(), 1);
+}
+
+TEST(TestGame, NoRepetitionDifferentMovingOrder) {
+  Game::Players players{Player({1, {HOME, 7, 7, GOAL}}),
+                        Player({2, {1, 1, GOAL, GOAL}})};
+
+  DicePairRoll roll{1, 1};
+
+  Game game(players);
+  auto mover = game.getPlayer(2);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  ASSERT_EQ(states.size(), 1);
+}
+
+TEST(TestGame, DifferentBecauseOfTheLastTouched) {
+  Game::Players players{Player({1, {HOME, 7, 7, GOAL}}),
+                        Player({2, {1, 5, GOAL, GOAL}})};
+
+  DicePairRoll roll{4, 1};
+
+  Game game(players);
+  auto mover = game.getPlayer(2);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  // Two different states depending on which piece was the last touched
+  ASSERT_EQ(states.size(), 2);
+}
+
+TEST(TestGame, SameOnGoOut) {
+  Game::Players players{Player({1, {HOME, HOME, HOME, HOME}}),
+                        Player({2, {1, 5, GOAL, GOAL}})};
+
+  DicePairRoll roll{5, 5};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  ASSERT_EQ(states.size(), 1);
+}
+
+TEST(TestGame, SameOnGoOutAndMove) {
+  Game::Players players{Player({1, {1, HOME, HOME, HOME}}),
+                        Player({2, {GOAL, HOME, GOAL, GOAL}})};
+
+  DicePairRoll roll{4, 5};
+
+  Game game(players);
+  auto mover = game.getPlayer(1);
+
+  std::vector<Game::Turn> states = game.allPossibleStates(mover, roll);
+  ASSERT_EQ(states.size(), 1);
+}

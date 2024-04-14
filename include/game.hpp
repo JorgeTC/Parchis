@@ -57,7 +57,7 @@ class Game {
       const Player& currentPlayer, const MovementsSequence& advances) const;
 
   ScoredPlay bestPlay(PlayerNumber, DicePairRoll, unsigned int rollsInARow = 1,
-                      unsigned int depth = 1) const;
+                      unsigned int depth = 2) const;
 
   // Returns a pointer to the player who owns the piece
   // I would eat on the given position

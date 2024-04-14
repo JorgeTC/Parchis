@@ -43,6 +43,8 @@ double Player::punctuation() const {
     punctuation += piecePunctuation(piece, finalPosition, initialPosition);
   }
 
+  if (punctuation== 0)
+    return -5000;
   return punctuation;
 }
 

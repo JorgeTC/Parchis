@@ -694,8 +694,10 @@ ScoredPlay Game::bestPlay(PlayerNumber playerId, DicePairRoll dices,
   }
 
   // There are no more possible movements, so evaluate the current state
-  bestPlay.score = evaluateStateInDepth(getState(), player, nextPlayer,
-                                        depth, rollsInARow);
+  if (turns.empty()) {
+    bestPlay.score = evaluateStateInDepth(getState(), player, nextPlayer, depth,
+                                          rollsInARow);
+  }
 
   // Return the best movements
   return bestPlay;
